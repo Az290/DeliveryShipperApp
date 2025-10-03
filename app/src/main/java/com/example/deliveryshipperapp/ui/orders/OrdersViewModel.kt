@@ -21,7 +21,8 @@ private const val TAG = "OrdersViewModel"
 
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
-    private val getAvailableOrders: GetAvailableOrdersUseCase,
+    private val getAvailableOrders: GetAvailableOrdersUseCase,   // cho processing
+    private val getReceivedOrders: GetReceivedOrdersUseCase,     // cho shipping
     private val getOrderDetail: GetOrderDetailUseCase,
     private val receiveOrder: ReceiveOrderUseCase,
     private val updateOrder: UpdateOrderUseCase,
@@ -29,30 +30,34 @@ class OrdersViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    // Danh sách đơn có thể nhận
     private val _availableOrders = MutableStateFlow<Resource<OrdersListResponse>>(Resource.Loading())
     val availableOrders: StateFlow<Resource<OrdersListResponse>> = _availableOrders
 
-    // Chi tiết một đơn
+    private val _myOrders = MutableStateFlow<Resource<OrdersListResponse>>(Resource.Loading())
+    val myOrders: StateFlow<Resource<OrdersListResponse>> = _myOrders
+
     private val _orderDetail = MutableStateFlow<Resource<OrderDetailDto>>(Resource.Loading())
     val orderDetail: StateFlow<Resource<OrderDetailDto>> = _orderDetail
 
-    // Thông tin khách hàng (lấy thêm từ user_id)
     private val _customerInfo = MutableStateFlow<Resource<UserDto>>(Resource.Loading())
     val customerInfo: StateFlow<Resource<UserDto>> = _customerInfo
 
-    // Trạng thái nhận / giao đơn
     private val _receiveOrderState = MutableStateFlow<Resource<Unit>?>(null)
     val receiveOrderState: StateFlow<Resource<Unit>?> = _receiveOrderState
 
     private val _updateOrderState = MutableStateFlow<Resource<Unit>?>(null)
     val updateOrderState: StateFlow<Resource<Unit>?> = _updateOrderState
 
+    private val _currentChatOrder = MutableStateFlow<Pair<Long, Long>?>(null)
+    val currentChatOrder: StateFlow<Pair<Long, Long>?> = _currentChatOrder
+
     init {
+        // khi mở app load cả 2
         loadAvailableOrders()
+        loadMyOrders()
     }
 
-    /** Lấy danh sách đơn có thể nhận (processing) */
+    /** ✅ Lấy danh sách đơn processing (có thể nhận) */
     fun loadAvailableOrders() {
         viewModelScope.launch {
             _availableOrders.value = Resource.Loading()
@@ -60,13 +65,27 @@ class OrdersViewModel @Inject constructor(
                 val result = getAvailableOrders()
                 _availableOrders.value = result
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading available orders: ${e.message}")
-                _availableOrders.value = Resource.Error("Không thể tải đơn: ${e.message}")
+                Log.e(TAG, "Error available orders: ${e.message}")
+                _availableOrders.value = Resource.Error("Không thể tải đơn khả dụng: ${e.message}")
             }
         }
     }
 
-    /** Lấy chi tiết một đơn + từ order.user_id gọi thêm API lấy thông tin khách */
+    /** ✅ Lấy danh sách đơn shipping (shipper đã nhận) */
+    fun loadMyOrders() {
+        viewModelScope.launch {
+            _myOrders.value = Resource.Loading()
+            try {
+                val result = getReceivedOrders()
+                _myOrders.value = result
+            } catch (e: Exception) {
+                Log.e(TAG, "Error my orders: ${e.message}")
+                _myOrders.value = Resource.Error("Không thể tải đơn shipper: ${e.message}")
+            }
+        }
+    }
+
+    /** Chi tiết đơn + thông tin khách */
     fun loadOrderDetail(orderId: Long) {
         viewModelScope.launch {
             _orderDetail.value = Resource.Loading()
@@ -85,21 +104,20 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /** Lấy thông tin khách hàng từ user_id */
     private fun loadCustomerInfo(userId: Long) {
         viewModelScope.launch {
             _customerInfo.value = Resource.Loading()
             try {
                 _customerInfo.value = getUser(userId)
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading user info: ${e.message}")
+                Log.e(TAG, "Error customer: ${e.message}")
                 _customerInfo.value = Resource.Error("Không thể tải thông tin khách: ${e.message}")
             }
         }
     }
 
-    /** Nhận đơn -> sang trạng thái shipping */
-    fun acceptOrder(orderId: Long) {
+    /** Nhận đơn */
+    fun acceptOrder(orderId: Long, customerId: Long) {
         viewModelScope.launch {
             _receiveOrderState.value = Resource.Loading()
             try {
@@ -107,15 +125,18 @@ class OrdersViewModel @Inject constructor(
                 _receiveOrderState.value = result
                 if (result is Resource.Success) {
                     NotificationHelper.showOrderReceivedNotification(context, orderId)
+                    _currentChatOrder.value = Pair(orderId, customerId)
+                    loadAvailableOrders()
+                    loadMyOrders()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error accept order: ${e.message}")
+                Log.e(TAG, "Error accept: ${e.message}")
                 _receiveOrderState.value = Resource.Error("Nhận đơn thất bại: ${e.message}")
             }
         }
     }
 
-    /** Giao đơn -> đánh dấu delivered */
+    /** Đánh dấu delivered */
     fun markDelivered(orderId: Long) {
         viewModelScope.launch {
             _updateOrderState.value = Resource.Loading()
@@ -124,10 +145,12 @@ class OrdersViewModel @Inject constructor(
                 _updateOrderState.value = result
                 if (result is Resource.Success) {
                     NotificationHelper.showOrderDeliveredNotification(context, orderId)
+                    loadMyOrders()
+                    _currentChatOrder.value = null
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error mark delivered: ${e.message}")
-                _updateOrderState.value = Resource.Error("Cập nhật đơn thất bại: ${e.message}")
+                Log.e(TAG, "Error delivered: ${e.message}")
+                _updateOrderState.value = Resource.Error("Cập nhật thất bại: ${e.message}")
             }
         }
     }

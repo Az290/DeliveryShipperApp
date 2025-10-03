@@ -7,27 +7,27 @@ import retrofit2.Response
 
 class ShipperRepository(private val api: ShipperApi) {
 
-    suspend fun getAvailableOrders(): Resource<OrdersListResponse> = handleOrdersResponse { api.getAvailableOrders() }
+    suspend fun getAvailableOrders(): Resource<OrdersListResponse> =
+        handleOrdersResponse { api.getAvailableOrders() }
 
-    suspend fun getMyOrders(): Resource<OrdersListResponse> = handleOrdersResponse { api.getMyOrders() }
+    suspend fun getReceivedOrders(): Resource<OrdersListResponse> =
+        handleOrdersResponse { api.getReceivedOrders() }
 
-    suspend fun getOrderDetail(id: Long): Resource<OrderDetailDto> = handleDetailResponse { api.getOrderDetail(id) }
+    suspend fun getOrderDetail(id: Long): Resource<OrderDetailDto> =
+        handleDetailResponse { api.getOrderDetail(id) }
 
-    suspend fun receiveOrder(orderId: Long): Resource<Unit> = handleUnitResponse { api.receiveOrder(ReceiveOrderRequestDto(orderId)) }
+    suspend fun receiveOrder(orderId: Long): Resource<Unit> =
+        handleUnitResponse { api.receiveOrder(ReceiveOrderRequestDto(orderId)) }
 
     suspend fun updateOrder(orderId: Long, payment: String, status: String): Resource<Unit> =
         handleUnitResponse { api.updateOrder(UpdateOrderRequestDto(orderId, payment, status)) }
 
+    // Helpers parse Response
     private inline fun handleOrdersResponse(apiCall: () -> Response<OrdersListResponse>): Resource<OrdersListResponse> {
         return try {
             val resp = apiCall()
             if (resp.isSuccessful) {
-                val body = resp.body()
-                if (body != null) {
-                    Resource.Success(body)
-                } else {
-                    Resource.Success(OrdersListResponse(emptyList()))
-                }
+                resp.body()?.let { Resource.Success(it) } ?: Resource.Success(OrdersListResponse(emptyList()))
             } else {
                 Resource.Error(resp.errorBody()?.string() ?: "Unknown error")
             }
@@ -40,12 +40,7 @@ class ShipperRepository(private val api: ShipperApi) {
         return try {
             val resp = apiCall()
             if (resp.isSuccessful) {
-                val body = resp.body()
-                if (body != null) {
-                    Resource.Success(body)
-                } else {
-                    Resource.Error("Order details not found")
-                }
+                resp.body()?.let { Resource.Success(it) } ?: Resource.Error("Order details not found")
             } else {
                 Resource.Error(resp.errorBody()?.string() ?: "Unknown error")
             }

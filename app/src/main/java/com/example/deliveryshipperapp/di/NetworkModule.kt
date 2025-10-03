@@ -18,6 +18,8 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.Interceptor
 import retrofit2.Retrofit
 import javax.inject.Singleton
+import com.example.deliveryshipperapp.data.remote.api.ProfileApi
+import com.example.deliveryshipperapp.data.repository.ProfileRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -57,4 +59,11 @@ object NetworkModule {
     @Provides @Singleton
     fun provideUserRepository(api: UserApi): UserRepository =
         UserRepository(api)
+    @Provides @Singleton
+    fun provideProfileApi(retrofit: Retrofit): ProfileApi =
+        retrofit.create(ProfileApi::class.java)
+
+    @Provides @Singleton
+    fun provideProfileRepository(api: ProfileApi): ProfileRepository =
+        ProfileRepository(api)
 }

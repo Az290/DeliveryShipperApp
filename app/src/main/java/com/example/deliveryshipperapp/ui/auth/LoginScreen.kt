@@ -25,7 +25,6 @@ fun LoginScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -34,52 +33,30 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "🚚 Shipper Login",
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Text("🚚 Shipper Login", style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth()
+                value = email, onValueChange = { email = it },
+                label = { Text("Email") }, modifier = Modifier.fillMaxWidth()
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                modifier = Modifier.fillMaxWidth()
+                value = password, onValueChange = { password = it },
+                label = { Text("Password") }, modifier = Modifier.fillMaxWidth()
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { viewModel.login(email, password) }
-            ) {
-                Text("Login")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            ) { Text("Login") }
 
             when (val s = state) {
                 is Resource.Loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    CircularProgressIndicator(Modifier.padding(top = 16.dp))
                 }
-
                 is Resource.Error -> {
                     LaunchedEffect(s) {
                         scope.launch {
@@ -87,18 +64,17 @@ fun LoginScreen(
                         }
                     }
                 }
-
                 is Resource.Success -> {
                     LaunchedEffect(s) {
                         scope.launch {
                             snackbarHostState.showSnackbar("✅ Welcome shipper!")
                         }
-                        navController.navigate("orders") {
+                        // ➡️ Điều hướng vào main
+                        navController.navigate("main") {
                             popUpTo("login") { inclusive = true }
                         }
                     }
                 }
-
                 else -> {}
             }
         }

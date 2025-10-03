@@ -9,6 +9,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.example.deliveryshipperapp.data.repository.ProfileRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -21,9 +22,6 @@ object UseCaseModule {
     fun provideGetAvailableOrdersUseCase(repo: ShipperRepository) =
         GetAvailableOrdersUseCase(repo)
 
-    @Provides @Singleton
-    fun provideGetMyOrdersUseCase(repo: ShipperRepository) =
-        GetMyOrdersUseCase(repo)
 
     @Provides @Singleton
     fun provideGetOrderDetailUseCase(repo: ShipperRepository) =
@@ -40,4 +38,11 @@ object UseCaseModule {
     @Provides @Singleton
     fun provideGetUserUseCase(repo: UserRepository) =
         GetUserUseCase(repo)
+    @Provides @Singleton
+    fun provideGetProfileUseCase(repo: ProfileRepository) = GetProfileUseCase(repo)
+
+    @Provides
+    @Singleton
+    fun provideGetReceivedOrdersUseCase(repo: ShipperRepository) =
+        GetReceivedOrdersUseCase(repo)
 }

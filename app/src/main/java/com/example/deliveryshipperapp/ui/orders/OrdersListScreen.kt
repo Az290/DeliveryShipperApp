@@ -24,85 +24,74 @@ import com.example.deliveryshipperapp.utils.Resource
 @Composable
 fun OrdersListScreen(
     navController: NavController,
-    viewModel: OrdersViewModel = hiltViewModel()
+    viewModel: OrdersViewModel = hiltViewModel(),
+    mode: String = "processing" // "processing" = Home, "shipping" = MyOrders
 ) {
-    val availableState by viewModel.availableOrders.collectAsState()
+    val state by if (mode == "processing")
+        viewModel.availableOrders.collectAsState()
+    else
+        viewModel.myOrders.collectAsState()
 
-    // Load data init
-    LaunchedEffect(Unit) {
-        viewModel.loadAvailableOrders()
+    // khởi động load theo mode
+    LaunchedEffect(mode) {
+        if (mode == "processing") {
+            viewModel.loadAvailableOrders()
+        } else {
+            viewModel.loadMyOrders()
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Shipper App") },
+                title = { Text(if (mode == "processing") "Đơn có thể nhận" else "Đơn của tôi") },
                 actions = {
-                    IconButton(onClick = { viewModel.loadAvailableOrders() }) {
-                        Icon(Icons.Default.Refresh, "Làm mới")
-                    }
                     IconButton(onClick = {
-                        // TODO: logout, sau đó chuyển màn hình login
+                        if (mode == "processing") viewModel.loadAvailableOrders()
+                        else viewModel.loadMyOrders()
                     }) {
-                        Icon(Icons.Default.ExitToApp, "Đăng xuất")
+                        Icon(Icons.Default.Refresh, "refresh")
+                    }
+                    IconButton(onClick = { /* TODO: logout */ }) {
+                        Icon(Icons.Default.ExitToApp, "logout")
                     }
                 }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            // Chỉ còn danh sách "Đơn có thể nhận"
-            OrdersList(
-                state = availableState,
-                navController = navController,
-                viewModel = viewModel
-            )
-        }
+        OrdersListContent(
+            modifier = Modifier.padding(padding),
+            state = state,
+            navController = navController,
+            mode = mode
+        )
     }
 }
 
 @Composable
-fun OrdersList(
+fun OrdersListContent(
+    modifier: Modifier = Modifier,
     state: Resource<OrdersListResponse>,
     navController: NavController,
-    viewModel: OrdersViewModel
+    mode: String
 ) {
     when (state) {
-        is Resource.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+        is Resource.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
+            CircularProgressIndicator()
         }
-        is Resource.Error -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("❌ ${state.message}")
-                Button(onClick = { viewModel.loadAvailableOrders() }) {
-                    Text("Thử lại")
-                }
-            }
+        is Resource.Error -> Box(modifier.fillMaxSize(), Alignment.Center) {
+            Text("❌ ${state.message}")
         }
         is Resource.Success -> {
             val orders = state.data?.orders ?: emptyList()
             if (orders.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier.fillMaxSize(), Alignment.Center) {
                     Text("Không có đơn hàng nào")
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(8.dp)
-                ) {
+                LazyColumn(contentPadding = PaddingValues(8.dp)) {
                     items(orders) { order ->
-                        OrderCard(order, navController)
+                        OrderCard(order, navController, mode)
                     }
                 }
             }
@@ -111,40 +100,38 @@ fun OrdersList(
 }
 
 @Composable
-fun OrderCard(order: OrderSummaryDto, navController: NavController) {
+fun OrderCard(order: OrderSummaryDto, navController: NavController, mode: String) {
     Card(
-        modifier = Modifier
+        Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { navController.navigate("order/${order.id}") },
+            .clickable {
+                if (mode == "processing") {
+                    navController.navigate("order/${order.id}")
+                } else {
+                    navController.navigate("delivery/${order.id}")
+                }
+            },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!order.thumbnail.isNullOrEmpty()) {
                 AsyncImage(
                     model = order.thumbnail,
-                    contentDescription = "Thumbnail",
-                    modifier = Modifier.size(60.dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp)
                 )
                 Spacer(Modifier.width(16.dp))
             }
-
-            Column(modifier = Modifier.weight(1f)) {
+            Column(Modifier.weight(1f)) {
                 Text("Đơn #${order.id}", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
                 Text("Trạng thái: ${order.order_status}", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(4.dp))
                 Text("${order.total_amount} đ", style = MaterialTheme.typography.bodyMedium)
             }
-
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = "Chi tiết",
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Icon(Icons.Default.ArrowForward, contentDescription = null)
         }
     }
 }

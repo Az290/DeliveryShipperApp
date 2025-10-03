@@ -106,6 +106,9 @@ dependencies {
 
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation ("com.jakewharton.threetenabp:threetenabp:1.4.4")
+    implementation("androidx.compose.material:material-icons-extended")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
