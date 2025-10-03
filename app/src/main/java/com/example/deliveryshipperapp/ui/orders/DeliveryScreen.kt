@@ -12,10 +12,7 @@ import androidx.navigation.NavController
 import com.example.deliveryshipperapp.ui.map.MapScreen
 import com.example.deliveryshipperapp.utils.Resource
 import kotlinx.coroutines.delay
-import com.mapbox.api.directions.v5.MapboxDirections
-import com.mapbox.api.directions.v5.DirectionsCriteria
-import com.mapbox.api.directions.v5.models.DirectionsResponse
-import com.mapbox.geojson.Point
+import com.example.deliveryshipperapp.ui.navigation.BottomNavItem
 
 @Composable
 fun DeliveryScreen(
@@ -88,8 +85,8 @@ fun DeliveryScreen(
                                     ).show()
                                     delay(500)
                                     viewModel.resetUpdateOrderState()
-                                    navController.navigate("orders") {
-                                        popUpTo("orders") { inclusive = true }
+                                    navController.navigate(BottomNavItem.Home.route) {
+                                        popUpTo(BottomNavItem.Home.route) { inclusive = true }
                                     }
                                 }
                             }
