@@ -1,13 +1,9 @@
 package com.example.deliveryshipperapp.ui.orders
 
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Place  // Thay Map bằng Place icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,11 +17,11 @@ import com.example.deliveryshipperapp.ui.map.MapScreen
 import com.example.deliveryshipperapp.utils.Resource
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class) // Thêm annotation này để tránh cảnh báo
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderDetailScreen(
     orderId: Long,
-    navController: NavController? = null,
+    navController: NavController,
     viewModel: OrdersViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -33,13 +29,17 @@ fun OrderDetailScreen(
     val receiveOrderState by viewModel.receiveOrderState.collectAsState()
     val updateOrderState by viewModel.updateOrderState.collectAsState()
 
-    // Xử lý trạng thái nhận đơn
+    // Xử lý khi shipper nhận đơn
     LaunchedEffect(receiveOrderState) {
         when (receiveOrderState) {
             is Resource.Success -> {
                 Toast.makeText(context, "Đã nhận đơn hàng thành công!", Toast.LENGTH_SHORT).show()
-                delay(1000)
+                delay(500)
                 viewModel.resetReceiveOrderState()
+                // 👉 Điều hướng sang DeliveryScreen
+                navController.navigate("delivery/$orderId") {
+                    popUpTo("orders") { inclusive = false }
+                }
             }
             is Resource.Error -> {
                 Toast.makeText(
@@ -53,15 +53,14 @@ fun OrderDetailScreen(
         }
     }
 
-    // Xử lý trạng thái cập nhật đơn
+    // Xử lý khi cập nhật đơn (đánh dấu giao)
     LaunchedEffect(updateOrderState) {
         when (updateOrderState) {
             is Resource.Success -> {
-                Toast.makeText(context, "Đã cập nhật trạng thái đơn hàng!", Toast.LENGTH_SHORT).show()
-                delay(1000)
+                Toast.makeText(context, "Đã cập nhật trạng thái đơn!", Toast.LENGTH_SHORT).show()
+                delay(500)
                 viewModel.resetUpdateOrderState()
-                // Quay lại màn hình danh sách đơn hàng
-                navController?.popBackStack()
+                navController.popBackStack()
             }
             is Resource.Error -> {
                 Toast.makeText(
@@ -75,6 +74,7 @@ fun OrderDetailScreen(
         }
     }
 
+    // Load chi tiết đơn
     LaunchedEffect(orderId) {
         viewModel.loadOrderDetail(orderId)
     }
@@ -85,10 +85,9 @@ fun OrderDetailScreen(
                 Box(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                ) { CircularProgressIndicator() }
             }
+
             is Resource.Error -> {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(padding),
@@ -97,6 +96,7 @@ fun OrderDetailScreen(
                     Text("❌ ${(state as Resource.Error).message}")
                 }
             }
+
             is Resource.Success -> {
                 val dto = (state as Resource.Success).data!!
                 Column(
@@ -104,55 +104,22 @@ fun OrderDetailScreen(
                         .fillMaxSize()
                         .padding(padding)
                 ) {
-                    // Thông tin đơn hàng
+                    // Card thông tin đơn
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "Đơn hàng #${dto.order.id}",
-                                style = MaterialTheme.typography.headlineSmall
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Trạng thái đơn hàng
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Trạng thái: ")
-                                val statusColor = when (dto.order.order_status) {
-                                    "pending" -> MaterialTheme.colorScheme.tertiary
-                                    "processing" -> MaterialTheme.colorScheme.primary
-                                    "shipping" -> MaterialTheme.colorScheme.secondary
-                                    "delivered" -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.error
-                                }
-
-                                Surface(
-                                    color = statusColor.copy(alpha = 0.1f),
-                                    shape = MaterialTheme.shapes.small
-                                ) {
-                                    Text(
-                                        text = when (dto.order.order_status) {
-                                            "pending" -> "Chờ xử lý"
-                                            "processing" -> "Đang chuẩn bị"
-                                            "shipping" -> "Đang giao"
-                                            "delivered" -> "Đã giao"
-                                            else -> dto.order.order_status
-                                        },
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        color = statusColor
-                                    )
-                                }
-                            }
-
+                            Text("Đơn hàng #${dto.order.id}", style = MaterialTheme.typography.headlineSmall)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Trạng thái: ${dto.order.order_status}")
                             Text("Thanh toán: ${dto.order.payment_status}")
                             Text("Tổng tiền: ${dto.order.total_amount} đ")
                         }
                     }
 
-                    // Bản đồ
+                    // Bản đồ (preview khách hàng & shipper)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -163,11 +130,13 @@ fun OrderDetailScreen(
                             userLng = dto.order.longitude,
                             driverLat = dto.order.latitude,
                             driverLng = dto.order.longitude,
-                            onBackClick = { navController?.popBackStack() }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(250.dp)   // đặt chiều cao tuỳ ý
                         )
                     }
 
-                    // Danh sách sản phẩm
+                    // Card sản phẩm
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -175,13 +144,10 @@ fun OrderDetailScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("Sản phẩm", style = MaterialTheme.typography.titleMedium)
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                            Spacer(Modifier.height(8.dp))
                             dto.items.forEach { item ->
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text("${item.product_name} x${item.quantity}")
@@ -203,13 +169,12 @@ fun OrderDetailScreen(
                             orderId = dto.order.id,
                             viewModel = viewModel,
                             receiveOrderState = receiveOrderState,
-                            updateOrderState = updateOrderState,
-                            latitude = dto.order.latitude,
-                            longitude = dto.order.longitude
+                            updateOrderState = updateOrderState
                         )
                     }
                 }
             }
+
             else -> {}
         }
     }
@@ -221,123 +186,53 @@ fun OrderActionButtons(
     orderId: Long,
     viewModel: OrdersViewModel,
     receiveOrderState: Resource<Unit>?,
-    updateOrderState: Resource<Unit>?,
-    latitude: Double,
-    longitude: Double
+    updateOrderState: Resource<Unit>?
 ) {
-    val context = LocalContext.current
-
     when (orderStatus) {
         "processing" -> {
             Button(
                 onClick = { viewModel.acceptOrder(orderId) },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = receiveOrderState !is Resource.Loading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                enabled = receiveOrderState !is Resource.Loading
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    if (receiveOrderState is Resource.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text("📦 Nhận đơn hàng")
+                if (receiveOrderState is Resource.Loading) {
+                    CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(8.dp))
                 }
+                Text("📦 Nhận đơn hàng")
             }
         }
         "shipping" -> {
-            Column {
-                Button(
-                    onClick = { viewModel.markDelivered(orderId) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = updateOrderState !is Resource.Loading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        if (updateOrderState is Resource.Loading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Text("✅ Đánh dấu đã giao")
-                    }
+            Button(
+                onClick = { viewModel.markDelivered(orderId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = updateOrderState !is Resource.Loading
+            ) {
+                if (updateOrderState is Resource.Loading) {
+                    CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(8.dp))
                 }
-
-                // Thêm nút mở bản đồ chỉ đường
-                OutlinedButton(
-                    onClick = {
-                        val gmmIntentUri = Uri.parse("google.navigation:q=$latitude,$longitude")
-                        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                        mapIntent.setPackage("com.google.android.apps.maps")
-
-                        // Kiểm tra xem có ứng dụng Maps không
-                        if (mapIntent.resolveActivity(context.packageManager) != null) {
-                            context.startActivity(mapIntent)
-                        } else {
-                            // Backup URI nếu không có Google Maps
-                            val uri = Uri.parse("https://maps.google.com/?q=$latitude,$longitude")
-                            val intent = Intent(Intent.ACTION_VIEW, uri)
-                            context.startActivity(intent)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Place,  // Sử dụng Place thay vì Map
-                            contentDescription = "Chỉ đường"
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Chỉ đường đến khách hàng")
-                    }
-                }
+                Text("✅ Đánh dấu đã giao")
             }
         }
         "delivered" -> {
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Đã giao",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "✅ Đơn hàng đã giao thành công",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Đã giao",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Đơn hàng đã giao thành công", color = MaterialTheme.colorScheme.primary)
             }
         }
         else -> {
             Text(
                 "Đơn hàng đang trong trạng thái $orderStatus",
-                style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )

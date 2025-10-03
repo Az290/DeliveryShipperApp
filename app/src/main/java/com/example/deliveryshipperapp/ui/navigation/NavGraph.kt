@@ -10,6 +10,7 @@ import androidx.navigation.NavType
 import com.example.deliveryshipperapp.ui.auth.LoginScreen
 import com.example.deliveryshipperapp.ui.orders.OrderDetailScreen
 import com.example.deliveryshipperapp.ui.orders.OrdersListScreen
+import com.example.deliveryshipperapp.ui.orders.DeliveryScreen
 
 @Composable
 fun NavGraph(navController: NavHostController = rememberNavController()) {
@@ -21,7 +22,14 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
             arguments = listOf(navArgument("id") { type = NavType.LongType })
         ) { backStack ->
             val id = backStack.arguments?.getLong("id") ?: 0L
-            OrderDetailScreen(orderId = id, navController = navController)  // Truyền navController
+            OrderDetailScreen(orderId = id, navController = navController)
+        }
+        composable(
+            "delivery/{id}",
+            arguments = listOf(navArgument("id") { type = NavType.LongType })
+        ) { backStack ->
+            val id = backStack.arguments?.getLong("id") ?: 0L
+            DeliveryScreen(orderId = id, navController = navController)
         }
     }
 }

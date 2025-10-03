@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.deliveryshipperapp.data.remote.dto.OrderDetailDto
 import com.example.deliveryshipperapp.data.remote.dto.OrdersListResponse
+import com.example.deliveryshipperapp.data.remote.dto.UserDto
 import com.example.deliveryshipperapp.domain.usecase.*
 import com.example.deliveryshipperapp.utils.NotificationHelper
 import com.example.deliveryshipperapp.utils.Resource
@@ -20,142 +21,117 @@ private const val TAG = "OrdersViewModel"
 
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
-    private val getAvailable: GetAvailableOrdersUseCase,
-    private val getMy: GetMyOrdersUseCase,
-    private val getDetail: GetOrderDetailUseCase,
+    private val getAvailableOrders: GetAvailableOrdersUseCase,
+    private val getOrderDetail: GetOrderDetailUseCase,
     private val receiveOrder: ReceiveOrderUseCase,
     private val updateOrder: UpdateOrderUseCase,
-    @ApplicationContext private val context: Context  // Sửa từ Application thành Context với annotation
+    private val getUser: GetUserUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    // Phần code còn lại giữ nguyên
+    // Danh sách đơn có thể nhận
     private val _availableOrders = MutableStateFlow<Resource<OrdersListResponse>>(Resource.Loading())
     val availableOrders: StateFlow<Resource<OrdersListResponse>> = _availableOrders
 
-    private val _myOrders = MutableStateFlow<Resource<OrdersListResponse>>(Resource.Loading())
-    val myOrders: StateFlow<Resource<OrdersListResponse>> = _myOrders
-
+    // Chi tiết một đơn
     private val _orderDetail = MutableStateFlow<Resource<OrderDetailDto>>(Resource.Loading())
     val orderDetail: StateFlow<Resource<OrderDetailDto>> = _orderDetail
 
-    // Thêm state cho trạng thái nhận đơn
+    // Thông tin khách hàng (lấy thêm từ user_id)
+    private val _customerInfo = MutableStateFlow<Resource<UserDto>>(Resource.Loading())
+    val customerInfo: StateFlow<Resource<UserDto>> = _customerInfo
+
+    // Trạng thái nhận / giao đơn
     private val _receiveOrderState = MutableStateFlow<Resource<Unit>?>(null)
     val receiveOrderState: StateFlow<Resource<Unit>?> = _receiveOrderState
 
-    // Thêm state cho trạng thái cập nhật đơn
     private val _updateOrderState = MutableStateFlow<Resource<Unit>?>(null)
     val updateOrderState: StateFlow<Resource<Unit>?> = _updateOrderState
 
+    init {
+        loadAvailableOrders()
+    }
+
+    /** Lấy danh sách đơn có thể nhận (processing) */
     fun loadAvailableOrders() {
         viewModelScope.launch {
             _availableOrders.value = Resource.Loading()
             try {
-                _availableOrders.value = getAvailable()
+                val result = getAvailableOrders()
+                _availableOrders.value = result
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading available orders: ${e.message}", e)
-                _availableOrders.value = Resource.Error("Lỗi tải đơn hàng: ${e.message}")
+                Log.e(TAG, "Error loading available orders: ${e.message}")
+                _availableOrders.value = Resource.Error("Không thể tải đơn: ${e.message}")
             }
         }
     }
 
-    fun loadMyOrders() {
-        viewModelScope.launch {
-            _myOrders.value = Resource.Loading()
-            try {
-                _myOrders.value = getMy()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading my orders: ${e.message}", e)
-                _myOrders.value = Resource.Error("Lỗi tải đơn hàng: ${e.message}")
-            }
-        }
-    }
-
-    fun loadOrderDetail(id: Long) {
+    /** Lấy chi tiết một đơn + từ order.user_id gọi thêm API lấy thông tin khách */
+    fun loadOrderDetail(orderId: Long) {
         viewModelScope.launch {
             _orderDetail.value = Resource.Loading()
             try {
-                _orderDetail.value = getDetail(id)
+                val detail = getOrderDetail(orderId)
+                _orderDetail.value = detail
+
+                if (detail is Resource.Success && detail.data != null) {
+                    val userId = detail.data.order.user_id
+                    loadCustomerInfo(userId)
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading order detail: ${e.message}", e)
-                _orderDetail.value = Resource.Error("Lỗi tải chi tiết đơn hàng: ${e.message}")
+                Log.e(TAG, "Error loading order detail: ${e.message}")
+                _orderDetail.value = Resource.Error("Không thể tải chi tiết đơn: ${e.message}")
             }
         }
     }
 
-    fun acceptOrder(id: Long) {
+    /** Lấy thông tin khách hàng từ user_id */
+    private fun loadCustomerInfo(userId: Long) {
+        viewModelScope.launch {
+            _customerInfo.value = Resource.Loading()
+            try {
+                _customerInfo.value = getUser(userId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading user info: ${e.message}")
+                _customerInfo.value = Resource.Error("Không thể tải thông tin khách: ${e.message}")
+            }
+        }
+    }
+
+    /** Nhận đơn -> sang trạng thái shipping */
+    fun acceptOrder(orderId: Long) {
         viewModelScope.launch {
             _receiveOrderState.value = Resource.Loading()
             try {
-                Log.d(TAG, "Attempting to accept order: $id")
-                val result = receiveOrder(id)
+                val result = receiveOrder(orderId)
                 _receiveOrderState.value = result
-
                 if (result is Resource.Success) {
-                    // Hiển thị thông báo
-                    NotificationHelper.showOrderReceivedNotification(context, id)
-
-                    // Cập nhật trạng thái đơn hàng ngay lập tức mà không cần gọi API lại
-                    val currentDetail = orderDetail.value
-                    if (currentDetail is Resource.Success && currentDetail.data != null) {
-                        val updatedOrder = currentDetail.data.order.copy(order_status = "shipping")
-                        val updatedDetail = currentDetail.data.copy(order = updatedOrder)
-                        _orderDetail.value = Resource.Success(updatedDetail)
-                    } else {
-                        // Nếu không có dữ liệu chi tiết đơn hàng, gọi API
-                        loadOrderDetail(id)
-                    }
-
-                    // Cập nhật danh sách đơn hàng
-                    loadAvailableOrders()
-                    loadMyOrders()
+                    NotificationHelper.showOrderReceivedNotification(context, orderId)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error accepting order: ${e.message}", e)
-                _receiveOrderState.value = Resource.Error("Lỗi nhận đơn: ${e.message}")
+                Log.e(TAG, "Error accept order: ${e.message}")
+                _receiveOrderState.value = Resource.Error("Nhận đơn thất bại: ${e.message}")
             }
         }
     }
 
-    fun markDelivered(id: Long) {
+    /** Giao đơn -> đánh dấu delivered */
+    fun markDelivered(orderId: Long) {
         viewModelScope.launch {
             _updateOrderState.value = Resource.Loading()
             try {
-                Log.d(TAG, "Marking order as delivered: $id")
-                val result = updateOrder(id, "paid", "delivered")
+                val result = updateOrder(orderId, "paid", "delivered")
                 _updateOrderState.value = result
-
                 if (result is Resource.Success) {
-                    // Hiển thị thông báo
-                    NotificationHelper.showOrderDeliveredNotification(context, id)
-
-                    // Cập nhật UI
-                    val currentDetail = orderDetail.value
-                    if (currentDetail is Resource.Success && currentDetail.data != null) {
-                        val updatedOrder = currentDetail.data.order.copy(
-                            order_status = "delivered",
-                            payment_status = "paid"
-                        )
-                        val updatedDetail = currentDetail.data.copy(order = updatedOrder)
-                        _orderDetail.value = Resource.Success(updatedDetail)
-                    } else {
-                        loadOrderDetail(id)
-                    }
-
-                    loadMyOrders()
+                    NotificationHelper.showOrderDeliveredNotification(context, orderId)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error marking order as delivered: ${e.message}", e)
-                _updateOrderState.value = Resource.Error("Lỗi cập nhật đơn hàng: ${e.message}")
+                Log.e(TAG, "Error mark delivered: ${e.message}")
+                _updateOrderState.value = Resource.Error("Cập nhật đơn thất bại: ${e.message}")
             }
         }
     }
 
-    // Reset các state
-    fun resetReceiveOrderState() {
-        _receiveOrderState.value = null
-    }
-
-    fun resetUpdateOrderState() {
-        _updateOrderState.value = null
-    }
+    fun resetReceiveOrderState() { _receiveOrderState.value = null }
+    fun resetUpdateOrderState() { _updateOrderState.value = null }
 }

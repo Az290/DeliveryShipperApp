@@ -20,6 +20,11 @@ interface ShipperApi {
     @GET("orders/{id}")
     suspend fun getOrderDetail(@Path("id") id:Long):Response<OrderDetailDto>
 
-    @GET("shipper/orders") // alias cho list orders của shipper
-    suspend fun getMyOrders():Response<OrdersListResponse>
+    // Thêm tham số status để phân biệt
+    @GET("shipper/orders")
+    suspend fun getMyOrders(
+        @Query("status") status:String="shipping",
+        @Query("page") page:Int=1,
+        @Query("limit") limit:Int=20
+    ):Response<OrdersListResponse>
 }

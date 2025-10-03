@@ -5,9 +5,11 @@ import com.example.deliveryshipperapp.data.local.DataStoreManager
 import com.example.deliveryshipperapp.data.remote.ApiClient
 import com.example.deliveryshipperapp.data.remote.api.AuthApi
 import com.example.deliveryshipperapp.data.remote.api.ShipperApi
+import com.example.deliveryshipperapp.data.remote.api.UserApi
 import com.example.deliveryshipperapp.data.remote.interceptor.AuthInterceptor
 import com.example.deliveryshipperapp.data.repository.AuthRepository
 import com.example.deliveryshipperapp.data.repository.ShipperRepository
+import com.example.deliveryshipperapp.data.repository.UserRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,38 +23,38 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideDataStore(@ApplicationContext context: Context): DataStoreManager =
         DataStoreManager(context)
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideAuthInterceptor(ds: DataStoreManager): Interceptor = AuthInterceptor(ds)
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideRetrofit(interceptor: Interceptor): Retrofit =
         ApiClient.create(interceptor)
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi =
         retrofit.create(AuthApi::class.java)
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideShipperApi(retrofit: Retrofit): ShipperApi =
         retrofit.create(ShipperApi::class.java)
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi =
+        retrofit.create(UserApi::class.java)
+
+    @Provides @Singleton
     fun provideAuthRepository(api: AuthApi, ds: DataStoreManager): AuthRepository =
         AuthRepository(api, ds)
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideShipperRepository(api: ShipperApi): ShipperRepository =
         ShipperRepository(api)
 
+    @Provides @Singleton
+    fun provideUserRepository(api: UserApi): UserRepository =
+        UserRepository(api)
 }

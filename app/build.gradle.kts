@@ -88,9 +88,12 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // Mapbox
-    implementation("com.mapbox.maps:android-ndk27:11.15.0")
-    implementation("com.mapbox.extension:maps-compose-ndk27:11.15.0")
+    // Mapbox Maps SDK v10
+    implementation("com.mapbox.maps:android:10.14.1")
+// Mapbox Services (Directions API, Routing,…)
+    implementation("com.mapbox.mapboxsdk:mapbox-sdk-services:6.11.0")
+    // Mapbox Navigation SDK (turn-by-turn)
+    implementation("com.mapbox.navigation:android:2.17.6")
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")
