@@ -136,10 +136,12 @@ class OrdersViewModel @Inject constructor(
                         // Tạo OrderDto giả từ OrderSummaryDto
                         val orderDto = OrderDto(
                             id = order.id,
-                            user_id = 0, // Mặc định 0 vì OrderSummaryDto không có trường này
+                            user_id = 0,
+                            user_name = null,    // 👈 mới thêm
+                            phone = null,        // 👈 mới thêm
                             order_status = order.order_status,
-                            payment_status = "unpaid", // Mặc định
-                            latitude = 10.762622, // Vị trí mặc định TPHCM
+                            payment_status = "unpaid",
+                            latitude = 10.762622,
                             longitude = 106.660172,
                             total_amount = order.total_amount,
                             thumbnail_id = null,
@@ -191,7 +193,7 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    private fun loadCustomerInfo(userId: Long) {
+    fun loadCustomerInfo(userId: Long) {
         viewModelScope.launch {
             _customerInfo.value = Resource.Loading()
             try {

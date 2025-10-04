@@ -23,7 +23,7 @@ fun DeliveryScreen(
     val orderDetail by viewModel.orderDetail.collectAsState()
     val updateState by viewModel.updateOrderState.collectAsState()
 
-    // Load chi tiết đơn khi vào màn
+    // ✅ Chỉ gọi 1 API duy nhất để lấy chi tiết đơn (đã có sẵn thông tin khách)
     LaunchedEffect(orderId) {
         viewModel.loadOrderDetail(orderId)
     }
@@ -47,18 +47,24 @@ fun DeliveryScreen(
                             .fillMaxSize()
                             .padding(16.dp)
                     ) {
-                        // Thông tin cơ bản
-                        Text("Đơn hàng #${order.id}", style = MaterialTheme.typography.titleLarge)
-                        Text("Khách hàng ID: ${order.user_id}")
+                        Text(
+                            text = "Đơn hàng #${order.id}",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+
+                        // ✅ Hiển thị thông tin khách hàng ngay trong order
+                        Text("Khách hàng: ${order.user_name}")
+                        if (!order.phone.isNullOrEmpty())
+                            Text("SĐT: ${order.phone}")
                         Text("Tổng tiền: ${order.total_amount} đ")
 
                         Spacer(Modifier.height(16.dp))
 
-                        // 👉 Map hiển thị marker + route theo lat/lng backend trả về
+                        // Bản đồ minh họa địa điểm giao hàng
                         MapScreen(
                             userLat = order.latitude,
                             userLng = order.longitude,
-                            driverLat = 10.762622,  // TODO: tạm fake GPS shipper
+                            driverLat = 10.762622,  // Tạm GPS shipper
                             driverLng = 106.660172,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -90,16 +96,20 @@ fun DeliveryScreen(
                                     }
                                 }
                             }
+
                             is Resource.Error -> {
                                 Text("❌ ${(updateState as Resource.Error).message}")
                             }
+
                             is Resource.Loading -> {
                                 LinearProgressIndicator(Modifier.fillMaxWidth())
                             }
+
                             else -> {}
                         }
                     }
                 }
+
                 else -> {}
             }
         }

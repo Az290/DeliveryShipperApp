@@ -25,15 +25,17 @@ data class OrderDetailDto(
 )
 
 data class OrderDto(
-    val id:Long,
-    val user_id:Long,
-    val order_status:String,
-    val payment_status:String,
-    val latitude:Double,
-    val longitude:Double,
-    val total_amount:Double,
-    val thumbnail_id:Long?,
-    val created_at:String?
+    val id: Long,
+    val user_id: Long,
+    val user_name: String?,   // ⚡ thêm
+    val phone: String?,       // ⚡ thêm
+    val order_status: String,
+    val payment_status: String,
+    val latitude: Double,
+    val longitude: Double,
+    val total_amount: Double,
+    val thumbnail_id: Long?,
+    val created_at: String?
 )
 
 data class OrderItemDto(
