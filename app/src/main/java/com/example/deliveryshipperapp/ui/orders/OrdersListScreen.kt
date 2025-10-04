@@ -19,6 +19,7 @@ import coil.compose.AsyncImage
 import com.example.deliveryshipperapp.data.remote.dto.OrderSummaryDto
 import com.example.deliveryshipperapp.data.remote.dto.OrdersListResponse
 import com.example.deliveryshipperapp.utils.Resource
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,11 +33,13 @@ fun OrdersListScreen(
     else
         viewModel.myOrders.collectAsState()
 
-    // khởi động load theo mode
+    // khởi động load theo mode với delay
     LaunchedEffect(mode) {
         if (mode == "processing") {
             viewModel.loadAvailableOrders()
         } else {
+            // Thêm delay nhỏ để đảm bảo backend đã cập nhật
+            delay(300)
             viewModel.loadMyOrders()
         }
     }
@@ -63,7 +66,8 @@ fun OrdersListScreen(
             modifier = Modifier.padding(padding),
             state = state,
             navController = navController,
-            mode = mode
+            mode = mode,
+            viewModel = viewModel
         )
     }
 }
@@ -73,7 +77,8 @@ fun OrdersListContent(
     modifier: Modifier = Modifier,
     state: Resource<OrdersListResponse>,
     navController: NavController,
-    mode: String
+    mode: String,
+    viewModel: OrdersViewModel
 ) {
     when (state) {
         is Resource.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
@@ -91,7 +96,7 @@ fun OrdersListContent(
             } else {
                 LazyColumn(contentPadding = PaddingValues(8.dp)) {
                     items(orders) { order ->
-                        OrderCard(order, navController, mode)
+                        OrderCard(order, navController, mode, viewModel)
                     }
                 }
             }
@@ -100,12 +105,20 @@ fun OrdersListContent(
 }
 
 @Composable
-fun OrderCard(order: OrderSummaryDto, navController: NavController, mode: String) {
+fun OrderCard(
+    order: OrderSummaryDto,
+    navController: NavController,
+    mode: String,
+    viewModel: OrdersViewModel
+) {
     Card(
         Modifier
             .fillMaxWidth()
             .padding(8.dp)
             .clickable {
+                // Lưu ID của đơn hàng được chọn
+                viewModel.selectOrder(order.id)
+
                 if (mode == "processing") {
                     navController.navigate("order/${order.id}")
                 } else {

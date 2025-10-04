@@ -16,6 +16,7 @@ import androidx.navigation.NavController
 import com.example.deliveryshipperapp.ui.map.MapScreen
 import com.example.deliveryshipperapp.utils.Resource
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,18 +29,17 @@ fun OrderDetailScreen(
     val state by viewModel.orderDetail.collectAsState()
     val receiveOrderState by viewModel.receiveOrderState.collectAsState()
     val updateOrderState by viewModel.updateOrderState.collectAsState()
+    val isFirstOrderReceived by viewModel.isFirstOrderReceived.collectAsState()
+    val scope = rememberCoroutineScope()
 
-    // Feedback cho Accept
+    // Feedback cho Accept - Giữ lại cho tương thích với các phần khác
     LaunchedEffect(receiveOrderState) {
         when (receiveOrderState) {
             is Resource.Success -> {
                 Toast.makeText(context, "Đã nhận đơn hàng thành công!", Toast.LENGTH_SHORT).show()
-                delay(600)
+                delay(300)
                 viewModel.resetReceiveOrderState()
-                // 👉 Quay về Home
-                navController.navigate("home") {
-                    popUpTo("home") { inclusive = true }
-                }
+                // Không điều hướng ở đây - đã được xử lý trong nút nhận đơn
             }
             is Resource.Error -> {
                 Toast.makeText(context, (receiveOrderState as Resource.Error).message ?: "Lỗi nhận đơn", Toast.LENGTH_LONG).show()
@@ -66,7 +66,10 @@ fun OrderDetailScreen(
         }
     }
 
-    LaunchedEffect(orderId) { viewModel.loadOrderDetail(orderId) }
+    // Dùng phương thức mới để tải dữ liệu
+    LaunchedEffect(orderId) {
+        viewModel.loadOrderFromAvailableList(orderId)
+    }
 
     Scaffold { padding ->
         when (state) {
@@ -104,95 +107,93 @@ fun OrderDetailScreen(
                         )
                     }
 
-                    // Card sản phẩm
-                    Card(
-                        Modifier.fillMaxWidth().padding(16.dp)
-                    ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("Sản phẩm", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(6.dp))
-                            dto.items.forEach { item ->
-                                Row(
-                                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("${item.product_name} x${item.quantity}")
-                                    Text("${item.subtotal} đ")
+                    // Card sản phẩm (chỉ hiển thị nếu có items)
+                    if (dto.items.isNotEmpty()) {
+                        Card(
+                            Modifier.fillMaxWidth().padding(16.dp)
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("Sản phẩm", style = MaterialTheme.typography.titleMedium)
+                                Spacer(Modifier.height(6.dp))
+                                dto.items.forEach { item ->
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("${item.product_name} x${item.quantity}")
+                                        Text("${item.subtotal} đ")
+                                    }
+                                    Divider()
                                 }
-                                Divider()
                             }
                         }
                     }
 
-                    // Action buttons
+                    // Action buttons - Cập nhật nhận đơn để đợi cập nhật
                     Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                        OrderActionButtons(
-                            orderStatus = order.order_status,
-                            orderId = order.id,
-                            customerId = order.user_id,   // ✅ Thêm customerId để gọi acceptOrder đúng
-                            viewModel = viewModel,
-                            receiveOrderState = receiveOrderState,
-                            updateOrderState = updateOrderState,
-                            navController = navController
-                        )
+                        when (order.order_status) {
+                            "processing" -> {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            val success = viewModel.acceptOrderAndWaitForUpdate(order.id, order.user_id)
+                                            if (success) {
+                                                // Chờ lâu hơn nếu là đơn đầu tiên
+                                                if (!isFirstOrderReceived) {
+                                                    delay(500)
+                                                } else {
+                                                    delay(300)
+                                                }
+
+                                                // Điều hướng đến tab "Đơn của tôi"
+                                                navController.navigate("myOrders") {
+                                                    popUpTo("home") { inclusive = true }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = receiveOrderState !is Resource.Loading
+                                ) {
+                                    if (receiveOrderState is Resource.Loading) {
+                                        CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    Text("📦 Nhận đơn hàng")
+                                }
+                            }
+                            "shipping" -> {
+                                Button(
+                                    onClick = { viewModel.markDelivered(order.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = updateOrderState !is Resource.Loading
+                                ) {
+                                    if (updateOrderState is Resource.Loading) {
+                                        CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    Text("✅ Đánh dấu đã giao")
+                                }
+                            }
+                            "delivered" -> {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, "Đã giao", tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Đơn hàng đã giao thành công", color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            else -> {
+                                Text("Đơn hàng trạng thái: ${order.order_status}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                            }
+                        }
                     }
                 }
             }
             else -> {}
-        }
-    }
-}
-
-@Composable
-fun OrderActionButtons(
-    orderStatus: String,
-    orderId: Long,
-    customerId: Long,
-    viewModel: OrdersViewModel,
-    receiveOrderState: Resource<Unit>?,
-    updateOrderState: Resource<Unit>?,
-    navController: NavController
-) {
-    when (orderStatus) {
-        "processing" -> {
-            Button(
-                onClick = { viewModel.acceptOrder(orderId, customerId) },   // ✅ truyền cả customerId
-                modifier = Modifier.fillMaxWidth(),
-                enabled = receiveOrderState !is Resource.Loading
-            ) {
-                if (receiveOrderState is Resource.Loading) {
-                    CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text("📦 Nhận đơn hàng")
-            }
-        }
-        "shipping" -> {
-            Button(
-                onClick = { viewModel.markDelivered(orderId) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = updateOrderState !is Resource.Loading
-            ) {
-                if (updateOrderState is Resource.Loading) {
-                    CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text("✅ Đánh dấu đã giao")
-            }
-        }
-        "delivered" -> {
-            Row(
-                Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.CheckCircle, "Đã giao", tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
-                Text("Đơn hàng đã giao thành công", color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        else -> {
-            Text("Đơn hàng trạng thái: $orderStatus", Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         }
     }
 }

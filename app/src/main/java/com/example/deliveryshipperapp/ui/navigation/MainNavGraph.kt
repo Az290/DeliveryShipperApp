@@ -17,6 +17,7 @@ import com.example.deliveryshipperapp.ui.orders.DeliveryScreen
 import com.example.deliveryshipperapp.ui.orders.OrderDetailScreen
 import com.example.deliveryshipperapp.ui.profile.ProfileScreen
 import com.example.deliveryshipperapp.ui.chat.ChatScreen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -26,6 +27,7 @@ fun MainNavGraph(rootNavController: NavHostController) {
 
     // ✅ trạng thái hiện tại của đơn để bật tắt Chat tab
     val currentChatOrder by ordersViewModel.currentChatOrder.collectAsState()
+    val isFirstOrderReceived by ordersViewModel.isFirstOrderReceived.collectAsState()
 
     // ✅ lấy accessToken từ DataStore
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -42,10 +44,25 @@ fun MainNavGraph(rootNavController: NavHostController) {
         ) {
             // Home: đơn đang processing
             composable(BottomNavItem.Home.route) {
+                LaunchedEffect(Unit) {
+                    // Force refresh khi vào tab Home
+                    ordersViewModel.loadAvailableOrders()
+                }
                 OrdersListScreen(navController, viewModel = ordersViewModel, mode = "processing")
             }
             // MyOrders: đơn shipper đã nhận (shipping)
             composable(BottomNavItem.MyOrders.route) {
+                // Sử dụng cả Unit và trạng thái isFirstOrderReceived để trigger LaunchedEffect
+                LaunchedEffect(Unit, isFirstOrderReceived) {
+                    // Thêm delay dài hơn nếu là đơn đầu tiên
+                    if (isFirstOrderReceived) {
+                        delay(800)
+                    } else {
+                        delay(300)
+                    }
+                    // Force refresh khi vào tab Đơn của tôi
+                    ordersViewModel.loadMyOrders()
+                }
                 OrdersListScreen(navController, viewModel = ordersViewModel, mode = "shipping")
             }
             // Order detail (từ Home)

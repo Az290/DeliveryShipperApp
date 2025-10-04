@@ -3,7 +3,11 @@ package com.example.deliveryshipperapp.data.remote.dto
 data class OrdersListResponse(val orders:List<OrderSummaryDto>)
 data class OrderSummaryDto(
     val id:Long,
+    val user_id:Long?,
+    val payment_status:String?,
     val order_status:String,
+    val latitude:Double,
+    val longitude:Double,
     val total_amount:Double,
     val thumbnail:String?
 )
