@@ -5,11 +5,9 @@ import com.example.deliveryshipperapp.data.local.DataStoreManager
 import com.example.deliveryshipperapp.data.remote.ApiClient
 import com.example.deliveryshipperapp.data.remote.api.AuthApi
 import com.example.deliveryshipperapp.data.remote.api.ShipperApi
-import com.example.deliveryshipperapp.data.remote.api.UserApi
 import com.example.deliveryshipperapp.data.remote.interceptor.AuthInterceptor
 import com.example.deliveryshipperapp.data.repository.AuthRepository
 import com.example.deliveryshipperapp.data.repository.ShipperRepository
-import com.example.deliveryshipperapp.data.repository.UserRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,10 +43,6 @@ object NetworkModule {
         retrofit.create(ShipperApi::class.java)
 
     @Provides @Singleton
-    fun provideUserApi(retrofit: Retrofit): UserApi =
-        retrofit.create(UserApi::class.java)
-
-    @Provides @Singleton
     fun provideAuthRepository(api: AuthApi, ds: DataStoreManager): AuthRepository =
         AuthRepository(api, ds)
 
@@ -56,9 +50,6 @@ object NetworkModule {
     fun provideShipperRepository(api: ShipperApi): ShipperRepository =
         ShipperRepository(api)
 
-    @Provides @Singleton
-    fun provideUserRepository(api: UserApi): UserRepository =
-        UserRepository(api)
     @Provides @Singleton
     fun provideProfileApi(retrofit: Retrofit): ProfileApi =
         retrofit.create(ProfileApi::class.java)

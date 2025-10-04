@@ -28,7 +28,6 @@ class OrdersViewModel @Inject constructor(
     private val getOrderDetail: GetOrderDetailUseCase,
     private val receiveOrder: ReceiveOrderUseCase,
     private val updateOrder: UpdateOrderUseCase,
-    private val getUser: GetUserUseCase,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -183,24 +182,12 @@ class OrdersViewModel @Inject constructor(
 
                 if (detail is Resource.Success && detail.data != null) {
                     Log.d(TAG, "Tải chi tiết đơn hàng thành công")
-                    val userId = detail.data.order.user_id
-                    loadCustomerInfo(userId)
+                    // ✅ bỏ: val userId = detail.data.order.user_id
+                    // ✅ bỏ: loadCustomerInfo(userId)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading order detail: ${e.message}")
                 _orderDetail.value = Resource.Error("Không thể tải chi tiết đơn: ${e.message}")
-            }
-        }
-    }
-
-    fun loadCustomerInfo(userId: Long) {
-        viewModelScope.launch {
-            _customerInfo.value = Resource.Loading()
-            try {
-                _customerInfo.value = getUser(userId)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error customer: ${e.message}")
-                _customerInfo.value = Resource.Error("Không thể tải thông tin khách: ${e.message}")
             }
         }
     }

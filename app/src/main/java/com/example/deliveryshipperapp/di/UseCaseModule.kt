@@ -2,7 +2,6 @@ package com.example.deliveryshipperapp.di
 
 import com.example.deliveryshipperapp.data.repository.AuthRepository
 import com.example.deliveryshipperapp.data.repository.ShipperRepository
-import com.example.deliveryshipperapp.data.repository.UserRepository
 import com.example.deliveryshipperapp.domain.usecase.*
 import dagger.Module
 import dagger.Provides
@@ -35,9 +34,6 @@ object UseCaseModule {
     fun provideUpdateOrderUseCase(repo: ShipperRepository) =
         UpdateOrderUseCase(repo)
 
-    @Provides @Singleton
-    fun provideGetUserUseCase(repo: UserRepository) =
-        GetUserUseCase(repo)
     @Provides @Singleton
     fun provideGetProfileUseCase(repo: ProfileRepository) = GetProfileUseCase(repo)
 
