@@ -9,4 +9,8 @@ import retrofit2.http.POST
 interface AuthApi {
     @POST("login")
     suspend fun login(@Body req: LoginRequestDto): Response<AuthResponseDto>
+
+    // ✅ thêm API refresh token để SplashScreen dùng
+    @POST("refresh-access-token")
+    suspend fun refreshAccessToken(@Body body: Map<String, String>): Response<AuthResponseDto>
 }

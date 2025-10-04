@@ -57,7 +57,9 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 val id = backStack.arguments?.getString("id")?.toLong() ?: 0L
                 DeliveryScreen(orderId = id, navController = navController, viewModel = ordersViewModel)
             }
-            composable(BottomNavItem.Profile.route) { ProfileScreen() }
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(navController = rootNavController)
+            }
 
 
             // 👇 Route mới khi chuyển từ DeliveryScreen có tên khách

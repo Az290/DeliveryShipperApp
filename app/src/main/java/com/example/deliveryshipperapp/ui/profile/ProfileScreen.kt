@@ -13,16 +13,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import com.example.deliveryshipperapp.data.local.DataStoreManager
 import com.example.deliveryshipperapp.utils.Resource
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileScreen(
+    viewModel: ProfileViewModel = hiltViewModel(),
+    navController: NavHostController? = null
+) {
     val profile by viewModel.profile.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val dataStore = remember { DataStoreManager(context) }
+
     LaunchedEffect(Unit) { viewModel.loadProfile() }
 
     Scaffold(
@@ -165,6 +176,34 @@ fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
                             fontSize = 14.sp,
                             letterSpacing = 1.sp
                         )
+
+                        Spacer(Modifier.height(32.dp))
+
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    dataStore.clearTokens()
+                                    navController?.navigate("login") {
+                                        popUpTo("main") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF44336)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            Text(
+                                text = "Đăng xuất",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
                     }
                 }
 
