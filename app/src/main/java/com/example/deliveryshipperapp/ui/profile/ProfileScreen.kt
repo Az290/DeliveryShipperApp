@@ -2,10 +2,12 @@ package com.example.deliveryshipperapp.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,22 +36,40 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val dataStore = remember { DataStoreManager(context) }
 
+    val gradientColors = listOf(
+        Color(0xFF667eea),
+        Color(0xFF764ba2),
+        Color(0xFFf093fb)
+    )
+
     LaunchedEffect(Unit) { viewModel.loadProfile() }
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(
+            TopAppBar(
                 title = {
-                    Text(
-                        "Thông tin Shipper",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape),
+                            color = Color.White.copy(alpha = 0.2f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Text(text = "👤", fontSize = 20.sp)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "Hồ Sơ Của Tôi",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
                 },
-                colors = TopAppBarDefaults.smallTopAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
         containerColor = Color.Transparent
@@ -57,128 +77,165 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        listOf(Color(0xFF3F51B5), Color(0xFF5C6BC0))
-                    )
-                )
+                .background(brush = Brush.verticalGradient(gradientColors))
                 .padding(padding)
         ) {
             when (val state = profile) {
-                is Resource.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                is Resource.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = "Đang tải thông tin...",
+                                color = Color.White.copy(alpha = 0.9f),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
 
-                is Resource.Error -> Text(
-                    text = "❌ ${state.message}",
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                is Resource.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                            Text(text = "⚠️", fontSize = 64.sp)
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = "Có lỗi xảy ra",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = state.message ?: "Vui lòng thử lại",
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
 
                 is Resource.Success -> {
                     val user = state.data!!
+                    val scrollState = rememberScrollState()
 
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                            .verticalScroll(scrollState)
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Avatar
+                        // Avatar Section
                         Box(
                             modifier = Modifier
                                 .size(120.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.15f)),
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.3f),
+                                            Color.White.copy(alpha = 0.1f)
+                                        )
+                                    )
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(70.dp)
-                            )
-                        }
-
-                        Spacer(Modifier.height(16.dp))
-
-                        // Name
-                        Text(
-                            text = user.name,
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = "SHIPPER",
-                            color = Color(0xFFDCE1FF),
-                            fontSize = 16.sp,
-                            letterSpacing = 2.sp
-                        )
-
-                        Spacer(Modifier.height(24.dp))
-
-                        // Card: Info
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(24.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(24.dp)
-                                    .fillMaxWidth()
+                            Surface(
+                                modifier = Modifier.size(110.dp),
+                                shape = CircleShape,
+                                color = Color.White.copy(alpha = 0.95f)
                             ) {
-                                InfoLine(label = "📧  Email", value = user.email)
-                                InfoLine(label = "📞  SĐT", value = user.phone)
-                                InfoLine(label = "🏠  Địa chỉ", value = user.address)
-                                InfoLine(label = "⭐  Vai trò", value = user.role ?: "shipper")
-
-                                val statusText = when (user.status) {
-                                    1 -> "Hoạt động"
-                                    2 -> "Đã khoá"
-                                    0 -> "Chưa kích hoạt"
-                                    else -> "Không rõ"
-                                }
-                                val statusColor = when (user.status) {
-                                    1 -> Color(0xFF4CAF50)
-                                    2 -> Color(0xFFF44336)
-                                    else -> Color(0xFFFFC107)
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        "🔒  Trạng thái",
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.Gray
-                                    )
-                                    Text(
-                                        statusText,
-                                        fontWeight = FontWeight.Bold,
-                                        color = statusColor
-                                    )
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text(text = "🚚", fontSize = 56.sp)
                                 }
                             }
                         }
 
-                        Spacer(Modifier.height(40.dp))
+                        Spacer(Modifier.height(20.dp))
 
+                        // Name & Role
                         Text(
-                            text = "Luôn nhiệt tình – An toàn – Đúng giờ!",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            letterSpacing = 1.sp
+                            text = user.name,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 28.sp
+                            )
                         )
+                        Spacer(Modifier.height(8.dp))
 
-                        Spacer(Modifier.height(32.dp))
+                        Surface(shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = 0.2f)) {
+                            Text(
+                                text = "TÀI XẾ GIAO HÀNG",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.5.sp,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
 
+                        Spacer(Modifier.height(28.dp))
+
+                        // Info Card
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(24.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(20.dp)
+                                    .fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Thông Tin Chi Tiết",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF667eea),
+                                        fontSize = 18.sp
+                                    ),
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+
+                                InfoLineWithIcon("📧", "Email", user.email)
+                                Divider(Modifier.padding(vertical = 12.dp), color = Color(0xFFEEEEEE))
+
+                                InfoLineWithIcon("📞", "Số điện thoại", user.phone)
+                                Divider(Modifier.padding(vertical = 12.dp), color = Color(0xFFEEEEEE))
+
+                                InfoLineWithIcon("🏠", "Địa chỉ", user.address)
+                                Divider(Modifier.padding(vertical = 12.dp), color = Color(0xFFEEEEEE))
+
+                                InfoLineWithIcon("⭐", "Vai trò", user.role ?: "shipper")
+                            }
+                        }
+
+                        Spacer(Modifier.height(24.dp))
+
+                        // Motto
+                        Surface(shape = RoundedCornerShape(16.dp), color = Color.White.copy(alpha = 0.15f)) {
+                            Text(
+                                text = "💪 Luôn nhiệt tình • An toàn • Đúng giờ!",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.5.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            )
+                        }
+
+                        Spacer(Modifier.height(40.dp)) // đôn nút Đăng Xuất lên một chút
+
+                        // Logout Button
                         Button(
                             onClick = {
                                 scope.launch {
@@ -189,21 +246,32 @@ fun ProfileScreen(
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF44336)
-                            ),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 4.dp,
+                                pressedElevation = 8.dp
+                            )
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = null,
+                                tint = Color(0xFFF44336),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
                             Text(
-                                text = "Đăng xuất",
-                                color = Color.White,
+                                text = "Đăng Xuất",
+                                color = Color(0xFFF44336),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                fontSize = 16.sp
                             )
                         }
+
+                        Spacer(Modifier.height(24.dp))
                     }
                 }
 
@@ -214,14 +282,32 @@ fun ProfileScreen(
 }
 
 @Composable
-fun InfoLine(label: String, value: String?) {
+fun InfoLineWithIcon(icon: String, label: String, value: String?) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, color = Color(0xFF555555), fontWeight = FontWeight.SemiBold)
-        Text(text = value ?: "-", color = Color.Black, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Text(text = icon, fontSize = 20.sp, modifier = Modifier.padding(end = 8.dp))
+            Column {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    value ?: "-",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1A1A1A),
+                        fontSize = 15.sp
+                    )
+                )
+            }
+        }
     }
 }
