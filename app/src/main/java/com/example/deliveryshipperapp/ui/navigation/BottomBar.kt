@@ -12,7 +12,7 @@ fun BottomNavigationBar(
     showChat: Boolean
 ) {
     val items = if (showChat) {
-        listOf(BottomNavItem.Home, BottomNavItem.MyOrders, BottomNavItem.Chat, BottomNavItem.Profile)
+        listOf(BottomNavItem.Home, BottomNavItem.MyOrders, BottomNavItem.Profile)
     } else {
         listOf(BottomNavItem.Home, BottomNavItem.MyOrders, BottomNavItem.Profile)
     }

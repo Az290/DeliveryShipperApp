@@ -15,12 +15,12 @@ fun ChatScreen(
     orderId: Long,
     customerId: Long,
     accessToken: String,
+    customerName: String = "Khách hàng",   // 👈 thêm mặc định
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val messages by viewModel.messages.collectAsState()
     var input by remember { mutableStateOf("") }
 
-    // Kết nối WS khi mở màn
     LaunchedEffect(accessToken) {
         if (accessToken.isNotBlank()) {
             viewModel.connectWebSocket(accessToken)
@@ -28,9 +28,13 @@ fun ChatScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Chat đơn #$orderId") }) },
+        topBar = { TopAppBar(title = { Text("Chat với $customerName (Đơn #$orderId)") }) },
         bottomBar = {
-            Row(Modifier.fillMaxWidth().padding(8.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
@@ -53,7 +57,6 @@ fun ChatScreen(
             contentPadding = PaddingValues(8.dp)
         ) {
             items(messages) { msg ->
-                // Giả sử shipper có id = -1 khi gửi tin (đã gán ở sendMessage)
                 val mine = (msg.fromUserId == -1L)
                 Card(
                     Modifier
@@ -62,12 +65,13 @@ fun ChatScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = if (mine)
                             MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     Column(Modifier.padding(8.dp)) {
                         Text(
-                            text = if (mine) "Tôi" else "KH",
+                            text = if (mine) "Tôi" else customerName,
                             style = MaterialTheme.typography.labelSmall
                         )
                         Text(msg.content)

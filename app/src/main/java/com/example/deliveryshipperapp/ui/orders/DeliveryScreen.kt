@@ -23,10 +23,7 @@ fun DeliveryScreen(
     val orderDetail by viewModel.orderDetail.collectAsState()
     val updateState by viewModel.updateOrderState.collectAsState()
 
-    // ✅ Chỉ gọi 1 API duy nhất để lấy chi tiết đơn (đã có sẵn thông tin khách)
-    LaunchedEffect(orderId) {
-        viewModel.loadOrderDetail(orderId)
-    }
+    LaunchedEffect(orderId) { viewModel.loadOrderDetail(orderId) }
 
     Scaffold { padding ->
         Box(
@@ -36,7 +33,6 @@ fun DeliveryScreen(
         ) {
             when (val res = orderDetail) {
                 is Resource.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-
                 is Resource.Error -> Text("❌ ${res.message}", Modifier.align(Alignment.Center))
 
                 is Resource.Success -> {
@@ -52,7 +48,6 @@ fun DeliveryScreen(
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        // ✅ Hiển thị thông tin khách hàng ngay trong order
                         Text("Khách hàng: ${order.user_name}")
                         if (!order.phone.isNullOrEmpty())
                             Text("SĐT: ${order.phone}")
@@ -60,11 +55,10 @@ fun DeliveryScreen(
 
                         Spacer(Modifier.height(16.dp))
 
-                        // Bản đồ minh họa địa điểm giao hàng
                         MapScreen(
                             userLat = order.latitude,
                             userLng = order.longitude,
-                            driverLat = 10.762622,  // Tạm GPS shipper
+                            driverLat = 10.762622,
                             driverLng = 106.660172,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -72,6 +66,19 @@ fun DeliveryScreen(
                         )
 
                         Spacer(Modifier.height(20.dp))
+
+                        // Nút chat để mở màn Chat
+                        Button(
+                            onClick = {
+                                navController.navigate("chat/${order.id}/${order.user_id}/${order.user_name}")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) { Text("💬 Chat với khách hàng") }
+
+                        Spacer(Modifier.height(12.dp))
 
                         // Nút đánh dấu đã giao
                         Button(
@@ -96,20 +103,16 @@ fun DeliveryScreen(
                                     }
                                 }
                             }
-
                             is Resource.Error -> {
                                 Text("❌ ${(updateState as Resource.Error).message}")
                             }
-
                             is Resource.Loading -> {
                                 LinearProgressIndicator(Modifier.fillMaxWidth())
                             }
-
                             else -> {}
                         }
                     }
                 }
-
                 else -> {}
             }
         }

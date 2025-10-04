@@ -18,79 +18,59 @@ import com.example.deliveryshipperapp.ui.orders.OrderDetailScreen
 import com.example.deliveryshipperapp.ui.profile.ProfileScreen
 import com.example.deliveryshipperapp.ui.chat.ChatScreen
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun MainNavGraph(rootNavController: NavHostController) {
     val navController = rememberNavController()
     val ordersViewModel: OrdersViewModel = hiltViewModel()
-
-    // ✅ trạng thái hiện tại của đơn để bật tắt Chat tab
     val currentChatOrder by ordersViewModel.currentChatOrder.collectAsState()
     val isFirstOrderReceived by ordersViewModel.isFirstOrderReceived.collectAsState()
 
-    // ✅ lấy accessToken từ DataStore
     val context = androidx.compose.ui.platform.LocalContext.current
     val dataStore = remember { DataStoreManager(context) }
     val accessToken by dataStore.accessToken.collectAsState(initial = "")
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController, showChat = (currentChatOrder != null)) }
+        bottomBar = { BottomNavigationBar(navController, showChat = false) }
     ) { padding ->
         NavHost(
             navController,
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.padding(padding)
         ) {
-            // Home: đơn đang processing
             composable(BottomNavItem.Home.route) {
-                LaunchedEffect(Unit) {
-                    // Force refresh khi vào tab Home
-                    ordersViewModel.loadAvailableOrders()
-                }
+                LaunchedEffect(Unit) { ordersViewModel.loadAvailableOrders() }
                 OrdersListScreen(navController, viewModel = ordersViewModel, mode = "processing")
             }
-            // MyOrders: đơn shipper đã nhận (shipping)
             composable(BottomNavItem.MyOrders.route) {
-                // Sử dụng cả Unit và trạng thái isFirstOrderReceived để trigger LaunchedEffect
                 LaunchedEffect(Unit, isFirstOrderReceived) {
-                    // Thêm delay dài hơn nếu là đơn đầu tiên
-                    if (isFirstOrderReceived) {
-                        delay(800)
-                    } else {
-                        delay(300)
-                    }
-                    // Force refresh khi vào tab Đơn của tôi
+                    if (isFirstOrderReceived) delay(800) else delay(300)
                     ordersViewModel.loadMyOrders()
                 }
                 OrdersListScreen(navController, viewModel = ordersViewModel, mode = "shipping")
             }
-            // Order detail (từ Home)
             composable("order/{id}") { backStack ->
                 val id = backStack.arguments?.getString("id")?.toLong() ?: 0L
                 OrderDetailScreen(orderId = id, navController = navController, viewModel = ordersViewModel)
             }
-            // Delivery screen (vào từ MyOrders)
             composable("delivery/{id}") { backStack ->
                 val id = backStack.arguments?.getString("id")?.toLong() ?: 0L
                 DeliveryScreen(orderId = id, navController = navController, viewModel = ordersViewModel)
             }
-            // Profile
-            composable(BottomNavItem.Profile.route) {
-                ProfileScreen()
-            }
-            // Chat screen
-            composable(BottomNavItem.Chat.route) {
-                if (currentChatOrder != null) {
-                    val (orderId, customerId) = currentChatOrder!!
-                    if (!accessToken.isNullOrEmpty()) {
-                        ChatScreen(orderId = orderId, customerId = customerId, accessToken = accessToken!!)
-                    } else {
-                        Text("🚫 Không tìm thấy access token, bạn cần đăng nhập lại")
-                    }
-                } else {
-                    Text("Chưa có đơn shipping để chat")
-                }
+            composable(BottomNavItem.Profile.route) { ProfileScreen() }
+
+
+            // 👇 Route mới khi chuyển từ DeliveryScreen có tên khách
+            composable("chat/{orderId}/{customerId}/{customerName}") { backStack ->
+                val orderId = backStack.arguments?.getString("orderId")?.toLong() ?: 0L
+                val customerId = backStack.arguments?.getString("customerId")?.toLong() ?: 0L
+                val customerName = backStack.arguments?.getString("customerName") ?: "Khách hàng"
+                ChatScreen(
+                    orderId = orderId,
+                    customerId = customerId,
+                    accessToken = accessToken ?: "",
+                    customerName = customerName
+                )
             }
         }
     }
