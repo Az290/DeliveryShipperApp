@@ -162,19 +162,39 @@ fun OrderDetailScreen(
                                     Text("📦 Nhận đơn hàng")
                                 }
                             }
+
                             "shipping" -> {
-                                Button(
-                                    onClick = { viewModel.markDelivered(order.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = updateOrderState !is Resource.Loading
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    if (updateOrderState is Resource.Loading) {
-                                        CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                                        Spacer(Modifier.width(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                scope.launch {
+                                                    viewModel.markDelivered(order.id)
+                                                }
+                                            }
+                                        ) { Text("✅ Hoàn thành") }
+
+                                        Button(
+                                            onClick = {
+                                                val customerId = order.user_id ?: 0L
+                                                val customerName = order.user_name ?: "Customer"
+                                                navController.navigate("chat/${order.id}/$customerId/$customerName")
+                                            }
+                                        ) {
+                                            Text("💬 Chat")
+                                        }
                                     }
-                                    Text("✅ Đánh dấu đã giao")
                                 }
                             }
+
+
+
                             "delivered" -> {
                                 Row(
                                     Modifier.fillMaxWidth().padding(16.dp),
@@ -196,4 +216,6 @@ fun OrderDetailScreen(
             else -> {}
         }
     }
+
 }
+

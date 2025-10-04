@@ -25,11 +25,33 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
             OrderDetailScreen(orderId = id, navController = navController)
         }
         composable(
-            "delivery/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
-        ) { backStack ->
-            val id = backStack.arguments?.getLong("id") ?: 0L
-            DeliveryScreen(orderId = id, navController = navController)
+            route = "delivery/{orderId}/{customerId}/{customerName}",
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.LongType },
+                navArgument("customerId") { type = NavType.LongType },
+                navArgument("customerName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            val customerName = backStackEntry.arguments?.getString("customerName") ?: ""
+            DeliveryScreen(orderId, customerId, customerName, navController)
+        }
+
+
+        // khai bao route = "delivery/{orderId}/{customerId}/{customerName}"
+        composable(
+            route = "delivery/{orderId}/{customerId}/{customerName}",
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.LongType },
+                navArgument("customerId") { type = NavType.LongType },
+                navArgument("customerName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            val customerName = backStackEntry.arguments?.getString("customerName") ?: ""
+            DeliveryScreen(orderId, customerId, customerName, navController)
         }
     }
 }

@@ -1,82 +1,110 @@
 package com.example.deliveryshipperapp.ui.chat
 
 import android.util.Log
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.deliveryshipperapp.utils.Constants
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import com.example.deliveryshipperapp.data.local.DataStoreManager
+import com.example.deliveryshipperapp.utils.WebSocketManager
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import okhttp3.*
-import okio.ByteString
 import org.json.JSONObject
+import javax.inject.Inject
 
-class ChatViewModel : ViewModel() {
+// Đổi tên để tránh trùng DTO
+data class ChatMessageUi(
+    val id: Long? = null,
+    val fromUserId: Long,
+    val toUserId: Long,
+    val content: String,
+    val createdAt: String,
+    val orderId: Long
+)
 
-    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val messages: StateFlow<List<ChatMessage>> = _messages
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val dataStore: DataStoreManager
+) : ViewModel() {
 
-    private var webSocket: WebSocket? = null
-    private val client = OkHttpClient()
+    val messages = mutableStateListOf<ChatMessageUi>()
+    val inputText = mutableStateOf("")
+    val isChatEnabled = mutableStateOf(true)
+    val customerName = mutableStateOf("Customer")
 
-    /** Kết nối WebSocket với JWT thật */
-    fun connectWebSocket(accessToken: String) {
-        val url = Constants.BASE_URL.replace("http", "ws") + "ws?token=$accessToken"
-        val request = Request.Builder().url(url).build()
+    private var wsManager: WebSocketManager? = null
+    private var currentOrderId: Long = 0L
+    private var toUserId: Long = 0L
 
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d("ChatVM", "✅ WS connected")
+    fun initChat(orderId: Long, toUserId: Long, customerName: String, token: String) {
+        this.currentOrderId = orderId
+        this.toUserId = toUserId
+        this.customerName.value = customerName
+
+        viewModelScope.launch {
+            val accessToken = token.ifEmpty {
+                dataStore.accessToken.firstOrNull() ?: return@launch
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                try {
-                    val json = JSONObject(text)
-                    val msg = ChatMessage(
-                        fromUserId = json.optLong("from_user_id", 0L),
-                        toUserId = json.optLong("to_user_id", 0L),
-                        content = json.optString("content"),
-                        createdAt = System.currentTimeMillis()
-                    )
-                    viewModelScope.launch {
-                        _messages.value = _messages.value + msg
-                    }
-                } catch (e: Exception) {
-                    Log.e("ChatVM", "Parse error: ${e.message}")
+            wsManager = WebSocketManager(
+                token = accessToken,
+                onMessageReceived = { msg ->
+                    handleIncomingMessage(msg)
+                },
+                onClosed = {
+                    isChatEnabled.value = false
                 }
-            }
+            )
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                onMessage(webSocket, bytes.utf8())
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e("ChatVM", "WebSocket failure: ${t.message}")
-            }
-        })
+            wsManager?.connect(orderId)
+        }
     }
 
-    /** Gửi tin nhắn */
-    fun sendMessage(orderId: Long, toUserId: Long, content: String) {
-        val json = JSONObject()
-        json.put("type", "chat_message")
-        json.put("order_id", orderId)
-        json.put("to_user_id", toUserId)
-        json.put("content", content)
+    private fun handleIncomingMessage(jsonStr: String) {
+        try {
+            val json = JSONObject(jsonStr)
+            if (json.optString("type") == "chat_message") {
+                val message = ChatMessageUi(
+                    fromUserId = json.optLong("from_user_id", 0L),
+                    toUserId = json.optLong("to_user_id", 0L),
+                    content = json.optString("content", ""),
+                    createdAt = json.optString("created_at", ""),
+                    orderId = json.optLong("order_id", 0L)
+                )
+                messages.add(message)
+            }
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Parse message error: ${e.message}")
+        }
+    }
 
-        webSocket?.send(json.toString())
+    fun sendMessage() {
+        if (!isChatEnabled.value || inputText.value.isBlank()) return
 
-        val msg = ChatMessage(
-            fromUserId = -1L, // shipper gửi tin
+        // ⚠️ Kiểm tra định nghĩa WebSocketManager.sendMessage()
+        // Nếu hàm của bạn là sendMessage(orderId, toUserId, content) thì dùng dòng dưới:
+        wsManager?.sendMessage(currentOrderId, toUserId, inputText.value)
+
+        val sentMsg = ChatMessageUi(
+            fromUserId = 0L, // Shipper ID thực có thể lấy từ token
             toUserId = toUserId,
-            content = content,
-            createdAt = System.currentTimeMillis()
+            content = inputText.value,
+            createdAt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date()),
+            orderId = currentOrderId
         )
-        _messages.value = _messages.value + msg
+        messages.add(sentMsg)
+        inputText.value = ""
+    }
+
+    fun onOrderCompleted() {
+        isChatEnabled.value = false
+        wsManager?.close()
+        messages.clear()
     }
 
     override fun onCleared() {
-        webSocket?.close(1000, "closed")
+        wsManager?.close()
         super.onCleared()
     }
 }

@@ -20,6 +20,7 @@ import com.example.deliveryshipperapp.data.remote.dto.OrderSummaryDto
 import com.example.deliveryshipperapp.data.remote.dto.OrdersListResponse
 import com.example.deliveryshipperapp.utils.Resource
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,14 +34,28 @@ fun OrdersListScreen(
     else
         viewModel.myOrders.collectAsState()
 
-    // khởi động load theo mode với delay
+    val receiveState by viewModel.receiveOrderState.collectAsState()
+
+    // Khởi động load theo mode với delay
     LaunchedEffect(mode) {
         if (mode == "processing") {
             viewModel.loadAvailableOrders()
         } else {
-            // Thêm delay nhỏ để đảm bảo backend đã cập nhật
             delay(300)
             viewModel.loadMyOrders()
+        }
+    }
+
+    // ✅ Theo dõi khi nhận đơn thành công để điều hướng đến DeliveryScreen
+    LaunchedEffect(receiveState) {
+        if (receiveState is Resource.Success) {
+            val current = viewModel.currentChatOrder.value
+            current?.let { (orderId, customerId) ->
+                // Có thể cần truyền thêm tên khách hàng nếu có trong OrderSummaryDto
+                val customerName = "Customer"
+                navController.navigate("delivery/$orderId/$customerId/$customerName")
+                viewModel.resetReceiveOrderState()
+            }
         }
     }
 
@@ -111,22 +126,31 @@ fun OrderCard(
     mode: String,
     viewModel: OrdersViewModel
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     Card(
         Modifier
             .fillMaxWidth()
             .padding(8.dp)
             .clickable {
-                // Lưu ID của đơn hàng được chọn
-                viewModel.selectOrder(order.id)
+                coroutineScope.launch {
+                    val orderId = order.id
+                    val customerId = order.user_id ?: 0L // ✅ ép giá trị nullable
+                    val customerName = "Customer"        // ✅ OrderSummaryDto chưa có user_name
 
-                if (mode == "processing") {
-                    navController.navigate("order/${order.id}")
-                } else {
-                    navController.navigate("delivery/${order.id}")
+                    if (mode == "processing") {
+                        val success = viewModel.acceptOrderAndWaitForUpdate(orderId, customerId)
+                        if (success) {
+                            navController.navigate("delivery/$orderId/$customerId/$customerName")
+                        }
+                    } else {
+                        navController.navigate("delivery/$orderId/$customerId/$customerName")
+                    }
                 }
             },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
+    )
+ {
         Row(
             Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically

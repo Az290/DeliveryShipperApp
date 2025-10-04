@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.deliveryshipperapp.data.remote.api.ShipperApi
 import com.example.deliveryshipperapp.data.remote.dto.*
 import com.example.deliveryshipperapp.utils.Resource
+import com.example.deliveryshipperapp.utils.WebSocketManager
 import kotlinx.coroutines.delay
 import retrofit2.Response
 
@@ -76,6 +77,28 @@ class ShipperRepository(private val api: ShipperApi) {
             Log.d(TAG, "Gọi API updateOrder cho đơn #$orderId: payment=$payment, status=$status")
             api.updateOrder(UpdateOrderRequestDto(orderId, payment, status))
         }
+
+    // Thêm vào ShipperRepository
+    private var wsManager: WebSocketManager? = null
+
+    suspend fun openChat(token: String, orderId: Long, toUserId: Long, onMessage: (String) -> Unit) {
+        wsManager = WebSocketManager(token, { msg -> onMessage(msg) }, { /* Handle close */ })
+        wsManager?.connect(orderId)
+    }
+
+    fun closeChat() {
+        wsManager?.close()
+        wsManager = null
+    }
+
+    suspend fun receiveOrderWithChat(orderId: Long, token: String, customerId: Long): Resource<Unit> {
+        val result = receiveOrder(orderId)
+        if (result is Resource.Success) {
+            // Mở WS sau khi nhận thành công
+            openChat(token, orderId, customerId, { msg -> /* Xử lý message ở ViewModel */ })
+        }
+        return result
+    }
 
     // Helpers parse Response
     private inline fun handleOrdersResponse(apiCall: () -> Response<OrdersListResponse>): Resource<OrdersListResponse> {

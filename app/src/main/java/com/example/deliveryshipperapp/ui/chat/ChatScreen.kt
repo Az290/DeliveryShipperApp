@@ -1,82 +1,96 @@
 package com.example.deliveryshipperapp.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.deliveryshipperapp.data.local.DataStoreManager
+import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
+    navController: NavController,
     orderId: Long,
     customerId: Long,
-    accessToken: String,
-    customerName: String = "Khách hàng",   // 👈 thêm mặc định
+    customerName: String,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
-    val messages by viewModel.messages.collectAsState()
-    var input by remember { mutableStateOf("") }
+    val messages = viewModel.messages
+    val inputText by viewModel.inputText
+    val isEnabled by viewModel.isChatEnabled
+    val name by viewModel.customerName
 
-    LaunchedEffect(accessToken) {
-        if (accessToken.isNotBlank()) {
-            viewModel.connectWebSocket(accessToken)
+    val context = LocalContext.current
+    val dataStore = remember { DataStoreManager(context) }
+    val token by dataStore.accessToken.map { it ?: "" }.collectAsState(initial = "")
+
+    LaunchedEffect(orderId, customerId, customerName, token) {
+        if (token.isNotEmpty()) {
+            viewModel.initChat(orderId, customerId, customerName, token)
         }
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Chat với $customerName (Đơn #$orderId)") }) },
-        bottomBar = {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(title = { Text("Chat với $name") })
+
+        if (!isEnabled) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(onClick = {
-                    if (input.isNotBlank()) {
-                        viewModel.sendMessage(orderId, customerId, input)
-                        input = ""
-                    }
-                }) { Text("Gửi") }
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Gray.copy(alpha = 0.3f)),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Đơn hàng đã được hoàn thành, không thể tiếp tục nhắn tin",
+                        modifier = Modifier.padding(16.dp),
+                        color = Color.Gray
+                    )
+                }
             }
+            return@Column
         }
-    ) { padding ->
+
         LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(8.dp)
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(messages) { msg ->
-                val mine = (msg.fromUserId == -1L)
-                Card(
-                    Modifier
+                Text(
+                    text = "${if (msg.fromUserId == customerId) name else "Bạn"}: ${msg.content}",
+                    modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (mine)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(Modifier.padding(8.dp)) {
-                        Text(
-                            text = if (mine) "Tôi" else customerName,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        Text(msg.content)
-                    }
-                }
+                        .background(Color.Blue.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                        .padding(8.dp)
+                )
+            }
+        }
+
+        Row(modifier = Modifier.padding(16.dp)) {
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = { viewModel.inputText.value = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Nhập tin nhắn...") }
+            )
+            IconButton(onClick = { viewModel.sendMessage() }) {
+                Icon(Icons.Default.Send, contentDescription = "Send")
             }
         }
     }

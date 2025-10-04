@@ -6,24 +6,33 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.deliveryshipperapp.ui.map.MapScreen
 import com.example.deliveryshipperapp.utils.Resource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import com.example.deliveryshipperapp.ui.navigation.BottomNavItem
 
 @Composable
 fun DeliveryScreen(
     orderId: Long,
+    customerId: Long,
+    customerName: String,
     navController: NavController,
     viewModel: OrdersViewModel = hiltViewModel()
 ) {
     val orderDetail by viewModel.orderDetail.collectAsState()
     val updateState by viewModel.updateOrderState.collectAsState()
 
-    LaunchedEffect(orderId) { viewModel.loadOrderDetail(orderId) }
+    LaunchedEffect(orderId) {
+        withContext(Dispatchers.IO) { viewModel.loadOrderDetail(orderId) }
+    }
+
+    val context = LocalContext.current
 
     Scaffold { padding ->
         Box(
@@ -31,6 +40,40 @@ fun DeliveryScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
+            // ✅ Di chuyển when(updateState) ra đây, luôn compose (không conditional)
+            when (updateState) {
+                is Resource.Success -> {
+                    LaunchedEffect(key1 = updateState) {  // Thêm key để stable trigger
+                        Toast.makeText(
+                            context,
+                            "Đơn đã giao thành công",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        delay(500)
+                        viewModel.resetUpdateOrderState()
+                        navController.navigate(BottomNavItem.Home.route) {
+                            popUpTo(BottomNavItem.Home.route) { inclusive = true }
+                        }
+                    }
+                }
+                is Resource.Error -> {
+                    // Hiển thị error global (có thể dùng Snackbar sau)
+                    Text(
+                        text = "❌ ${(updateState as Resource.Error).message}",
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                is Resource.Loading -> {
+                    // Loading overlay nếu cần
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                    )
+                }
+                else -> {}
+            }
+
             when (val res = orderDetail) {
                 is Resource.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 is Resource.Error -> Text("❌ ${res.message}", Modifier.align(Alignment.Center))
@@ -41,7 +84,7 @@ fun DeliveryScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp)
+                            .padding(4.dp)
                     ) {
                         Text(
                             text = "Đơn hàng #${order.id}",
@@ -86,30 +129,6 @@ fun DeliveryScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("✅ Đánh dấu đã giao")
-                        }
-
-                        when (updateState) {
-                            is Resource.Success -> {
-                                LaunchedEffect(Unit) {
-                                    Toast.makeText(
-                                        navController.context,
-                                        "Đơn đã giao thành công",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    delay(500)
-                                    viewModel.resetUpdateOrderState()
-                                    navController.navigate(BottomNavItem.Home.route) {
-                                        popUpTo(BottomNavItem.Home.route) { inclusive = true }
-                                    }
-                                }
-                            }
-                            is Resource.Error -> {
-                                Text("❌ ${(updateState as Resource.Error).message}")
-                            }
-                            is Resource.Loading -> {
-                                LinearProgressIndicator(Modifier.fillMaxWidth())
-                            }
-                            else -> {}
                         }
                     }
                 }
