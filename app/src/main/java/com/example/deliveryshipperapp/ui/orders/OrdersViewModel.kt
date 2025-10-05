@@ -9,6 +9,7 @@ import com.example.deliveryshipperapp.data.remote.dto.OrderDto
 import com.example.deliveryshipperapp.data.remote.dto.OrdersListResponse
 import com.example.deliveryshipperapp.data.remote.dto.UserDto
 import com.example.deliveryshipperapp.domain.usecase.*
+import com.example.deliveryshipperapp.ui.chat.ChatViewModel
 import com.example.deliveryshipperapp.utils.NotificationHelper
 import com.example.deliveryshipperapp.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,7 @@ class OrdersViewModel @Inject constructor(
     private val getOrderDetail: GetOrderDetailUseCase,
     private val receiveOrder: ReceiveOrderUseCase,
     private val updateOrder: UpdateOrderUseCase,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,     // ✅ thêm ChatViewModel để xoá chat của đơn hàng đã giao
 ) : ViewModel() {
 
     private val _availableOrders = MutableStateFlow<Resource<OrdersListResponse>>(Resource.Loading())
@@ -116,28 +117,22 @@ class OrdersViewModel @Inject constructor(
             _orderDetail.value = Resource.Loading()
 
             try {
-                // Đầu tiên, đảm bảo danh sách đã được tải
                 if (_availableOrders.value !is Resource.Success) {
                     loadAvailableOrders()
-                    // Đợi một chút để đảm bảo API hoàn thành
                     delay(500)
                 }
 
-                // Kiểm tra lại kết quả
                 val currentOrders = _availableOrders.value
                 if (currentOrders is Resource.Success) {
-                    // Tìm đơn hàng với ID tương ứng
                     val order = currentOrders.data?.orders?.find { it.id == orderId }
 
                     if (order != null) {
                         Log.d(TAG, "Đã tìm thấy đơn hàng #${orderId} trong danh sách có sẵn")
-
-                        // Tạo OrderDto giả từ OrderSummaryDto
                         val orderDto = OrderDto(
                             id = order.id,
                             user_id = 0,
-                            user_name = null,    // 👈 mới thêm
-                            phone = null,        // 👈 mới thêm
+                            user_name = null,
+                            phone = null,
                             order_status = order.order_status,
                             payment_status = "unpaid",
                             latitude = 10.762622,
@@ -147,21 +142,18 @@ class OrdersViewModel @Inject constructor(
                             created_at = null
                         )
 
-                        // Tạo OrderDetailDto
                         val detailDto = OrderDetailDto(
                             order = orderDto,
-                            items = emptyList() // không có thông tin chi tiết
+                            items = emptyList()
                         )
 
                         _orderDetail.value = Resource.Success(detailDto)
                     } else {
                         Log.d(TAG, "Không tìm thấy đơn hàng #${orderId} trong danh sách, gọi API chi tiết")
-                        // Nếu không tìm thấy trong danh sách, thử gọi API chi tiết
                         loadOrderDetail(orderId)
                     }
                 } else {
                     Log.d(TAG, "Danh sách đơn không có sẵn, gọi API chi tiết")
-                    // Danh sách không có sẵn, thử gọi API chi tiết
                     loadOrderDetail(orderId)
                 }
             } catch (e: Exception) {
@@ -182,8 +174,6 @@ class OrdersViewModel @Inject constructor(
 
                 if (detail is Resource.Success && detail.data != null) {
                     Log.d(TAG, "Tải chi tiết đơn hàng thành công")
-                    // ✅ bỏ: val userId = detail.data.order.user_id
-                    // ✅ bỏ: loadCustomerInfo(userId)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading order detail: ${e.message}")
@@ -207,32 +197,25 @@ class OrdersViewModel @Inject constructor(
                 NotificationHelper.showOrderReceivedNotification(context, orderId)
                 _currentChatOrder.value = Pair(orderId, customerId)
 
-                // Kiểm tra nếu là đơn đầu tiên
                 val isFirst = !_isFirstOrderReceived.value
                 if (isFirst) {
                     _isFirstOrderReceived.value = true
-                    // Thêm delay dài hơn cho đơn đầu tiên
                     delay(1200)
                 } else {
                     delay(800)
                 }
 
-                // Tải lại danh sách với nhiều lần thử nếu là đơn đầu tiên
                 _myOrders.value = Resource.Loading()
                 val myOrdersResult = getReceivedOrders()
                 _myOrders.value = myOrdersResult
 
-                // Kiểm tra và thử lại nếu là đơn đầu tiên và danh sách trống
                 if (isFirst && (myOrdersResult is Resource.Success && myOrdersResult.data?.orders?.isEmpty() == true)) {
                     delay(1000)
-                    // Thử lại lần nữa
                     val retryResult = getReceivedOrders()
                     _myOrders.value = retryResult
                 }
 
-                // Tải lại danh sách đơn có thể nhận
                 loadAvailableOrders()
-
                 return true
             }
             return false
@@ -250,7 +233,6 @@ class OrdersViewModel @Inject constructor(
             try {
                 Log.d(TAG, "Đang gọi API nhận đơn: $orderId")
                 val result = receiveOrder(orderId)
-                Log.d(TAG, "Kết quả nhận đơn: $result")
                 _receiveOrderState.value = result
                 if (result is Resource.Success) {
                     Log.d(TAG, "Nhận đơn thành công, cập nhật danh sách")
@@ -277,6 +259,7 @@ class OrdersViewModel @Inject constructor(
                     NotificationHelper.showOrderDeliveredNotification(context, orderId)
                     loadMyOrders()
                     _currentChatOrder.value = null
+                    Log.d(TAG, "Đã xoá đoạn chat cho đơn #$orderId sau khi giao thành công")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error delivered: ${e.message}")

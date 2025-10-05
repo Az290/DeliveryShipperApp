@@ -30,9 +30,13 @@ fun ChatScreen(
     customerId: Long,
     accessToken: String,
     customerName: String = "Khách hàng",
-    viewModel: ChatViewModel = hiltViewModel()
+    viewModel: ChatViewModel = hiltViewModel(),
+    onBack: (() -> Unit)? = null
 ) {
-    val messages by viewModel.messages.collectAsState()
+    // Lấy cuộc trò chuyện của đơn hiện tại
+    val conversationMap by viewModel.conversations.collectAsState()
+    val messages = conversationMap[orderId] ?: emptyList()
+
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -42,18 +46,17 @@ fun ChatScreen(
     val customerBubbleColor = Color(0xFFF0F0F0)
     val backgroundColor = Color(0xFFFAFAFA)
 
+    // Kết nối socket khi có token
     LaunchedEffect(accessToken) {
         if (accessToken.isNotBlank()) {
-            viewModel.connectWebSocket(accessToken)
+            viewModel.connectWebSocket(orderId, accessToken)
         }
     }
 
-    // Auto scroll khi có tin nhắn mới
+    // Auto‑scroll xuống cuối khi có tin nhắn mới
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            scope.launch {
-                listState.animateScrollToItem(messages.size - 1)
-            }
+            scope.launch { listState.animateScrollToItem(messages.size - 1) }
         }
     }
 
@@ -61,21 +64,14 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Avatar khách hàng
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape),
                             color = Color(0xFF667eea).copy(alpha = 0.2f)
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                                 Icon(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = "Avatar khách hàng",
@@ -90,9 +86,7 @@ fun ChatScreen(
                         Column {
                             Text(
                                 text = customerName,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                )
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
                                 text = "Đơn hàng #$orderId",
@@ -109,7 +103,7 @@ fun ChatScreen(
                     titleContentColor = Color(0xFF1A1A1A)
                 ),
                 navigationIcon = {
-                    IconButton(onClick = { /* Xử lý quay lại */ }) {
+                    IconButton(onClick = { onBack?.invoke() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Quay lại",
@@ -120,27 +114,19 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shadowElevation = 8.dp
-            ) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 8.dp) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    // Input field
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
                         modifier = Modifier.weight(1f),
                         placeholder = {
-                            Text(
-                                "Nhập tin nhắn...",
-                                color = Color.Gray.copy(alpha = 0.5f)
-                            )
+                            Text("Nhập tin nhắn...", color = Color.Gray.copy(alpha = 0.5f))
                         },
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -153,7 +139,6 @@ fun ChatScreen(
 
                     Spacer(Modifier.width(8.dp))
 
-                    // Nút gửi
                     FloatingActionButton(
                         onClick = {
                             if (input.isNotBlank()) {
@@ -163,9 +148,7 @@ fun ChatScreen(
                         },
                         modifier = Modifier.size(48.dp),
                         containerColor = Color(0xFF667eea),
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 4.dp
-                        )
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Send,
@@ -184,7 +167,6 @@ fun ChatScreen(
                 .fillMaxSize()
         ) {
             if (messages.isEmpty()) {
-                // Empty state
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -192,13 +174,10 @@ fun ChatScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = "💬",
-                        fontSize = 64.sp
-                    )
+                    Text("💬", fontSize = 64.sp)
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "Chưa có tin nhắn nào",
+                        "Chưa có tin nhắn nào",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Medium,
                             color = Color.Gray
@@ -206,7 +185,7 @@ fun ChatScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Gửi tin nhắn đầu tiên để bắt đầu trò chuyện",
+                        "Gửi tin nhắn đầu tiên để bắt đầu trò chuyện",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = Color.Gray.copy(alpha = 0.7f)
                         )
@@ -221,15 +200,10 @@ fun ChatScreen(
                 ) {
                     items(messages) { msg ->
                         val mine = (msg.fromUserId == -1L)
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (mine)
-                                Arrangement.End
-                            else
-                                Arrangement.Start
+                            horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
                         ) {
-                            // Bubble tin nhắn
                             Surface(
                                 modifier = Modifier.widthIn(max = 280.dp),
                                 shape = RoundedCornerShape(
@@ -242,12 +216,8 @@ fun ChatScreen(
                                 shadowElevation = 2.dp
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(
-                                        horizontal = 12.dp,
-                                        vertical = 8.dp
-                                    )
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
-                                    // Tên người gửi
                                     Text(
                                         text = if (mine) "Tôi" else customerName,
                                         style = MaterialTheme.typography.labelSmall.copy(
@@ -262,7 +232,6 @@ fun ChatScreen(
 
                                     Spacer(Modifier.height(4.dp))
 
-                                    // Nội dung tin nhắn
                                     Text(
                                         text = msg.content,
                                         style = MaterialTheme.typography.bodyMedium.copy(
@@ -270,19 +239,6 @@ fun ChatScreen(
                                             fontSize = 15.sp
                                         )
                                     )
-
-                                    // Thời gian (optional - nếu có timestamp)
-                                    // Text(
-                                    //     text = "10:30",
-                                    //     style = MaterialTheme.typography.labelSmall.copy(
-                                    //         color = if (mine)
-                                    //             Color.White.copy(alpha = 0.7f)
-                                    //         else
-                                    //             Color.Gray,
-                                    //         fontSize = 10.sp
-                                    //     ),
-                                    //     modifier = Modifier.align(Alignment.End)
-                                    // )
                                 }
                             }
                         }

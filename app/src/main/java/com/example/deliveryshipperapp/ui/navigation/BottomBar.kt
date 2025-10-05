@@ -25,6 +25,11 @@ fun BottomNavigationBar(
             NavigationBarItem(
                 selected = currentRoute == item.route,
                 onClick = {
+                    // ✅ Nếu đang ở Chat thì pop nó trước rồi chuyển tab
+                    val isChatScreen = currentRoute?.startsWith("chat/") == true
+                    if (isChatScreen) {
+                        navController.popBackStack()
+                    }
                     if (currentRoute != item.route) {
                         navController.navigate(item.route) {
                             popUpTo(navController.graph.startDestinationId) {

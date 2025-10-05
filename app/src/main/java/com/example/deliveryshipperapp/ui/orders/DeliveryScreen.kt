@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.deliveryshipperapp.ui.chat.ChatViewModel
 import com.example.deliveryshipperapp.ui.map.MapScreen
 import com.example.deliveryshipperapp.utils.Resource
 import kotlinx.coroutines.delay
@@ -29,7 +30,8 @@ import com.example.deliveryshipperapp.ui.navigation.BottomNavItem
 fun DeliveryScreen(
     orderId: Long,
     navController: NavController,
-    viewModel: OrdersViewModel = hiltViewModel()
+    viewModel: OrdersViewModel = hiltViewModel(),
+    chatViewModel: ChatViewModel = hiltViewModel()   // ✅ thêm ChatViewModel
 ) {
     val orderDetail by viewModel.orderDetail.collectAsState()
     val updateState by viewModel.updateOrderState.collectAsState()
@@ -297,7 +299,9 @@ fun DeliveryScreen(
                                 onClick = {
                                     navController.navigate("chat/${order.id}/${order.user_id}/${order.user_name}")
                                 },
-                                modifier = Modifier.weight(1f).height(56.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = Color(0xFF667eea)
@@ -323,7 +327,9 @@ fun DeliveryScreen(
                             if (!order.phone.isNullOrEmpty()) {
                                 OutlinedButton(
                                     onClick = { /* TODO: Call customer */ },
-                                    modifier = Modifier.weight(1f).height(56.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(56.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         contentColor = Color(0xFF4CAF50)
@@ -386,8 +392,12 @@ fun DeliveryScreen(
                                     color = Color(0xFF4CAF50)
                                 )
                             }
+
                             is Resource.Success -> {
                                 LaunchedEffect(Unit) {
+                                    // ✅ xóa nội dung chat của đơn hàng này
+                                    chatViewModel.clearConversation(order.id)
+
                                     Toast.makeText(
                                         navController.context,
                                         "✅ Đơn đã giao thành công!",
@@ -400,6 +410,7 @@ fun DeliveryScreen(
                                     }
                                 }
                             }
+
                             is Resource.Error -> {
                                 Spacer(Modifier.height(8.dp))
                                 Surface(
@@ -415,6 +426,7 @@ fun DeliveryScreen(
                                     )
                                 }
                             }
+
                             else -> {}
                         }
 
