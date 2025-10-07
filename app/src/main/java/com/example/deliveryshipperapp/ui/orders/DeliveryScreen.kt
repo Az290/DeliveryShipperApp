@@ -2,6 +2,7 @@ package com.example.deliveryshipperapp.ui.orders
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -269,8 +270,15 @@ fun DeliveryScreen(
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF667eea)
-                                            )
+                                            ),
+                                            modifier = Modifier.clickable {
+                                                navController.navigate(
+                                                    "map_full/${10.762622}/${106.660172}/${order.latitude}/${order.longitude}"
+                                                )
+                                            }
                                         )
+
+
                                     }
                                 }
 

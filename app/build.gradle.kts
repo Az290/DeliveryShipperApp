@@ -3,6 +3,7 @@ plugins {
     kotlin("android")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+
 }
 
 android {
@@ -61,6 +62,10 @@ hilt {
 }
 
 dependencies {
+    //fix Direction
+    implementation ("com.google.auto.value:auto-value-annotations:1.10.4")
+
+
     // Core
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
@@ -90,10 +95,11 @@ dependencies {
 
     // Mapbox Maps SDK v10
     implementation("com.mapbox.maps:android:10.14.1")
-// Mapbox Services (Directions API, Routing,…)
+    // Mapbox Services (Directions API, Routing,…)
     implementation("com.mapbox.mapboxsdk:mapbox-sdk-services:6.11.0")
     // Mapbox Navigation SDK (turn-by-turn)
     implementation("com.mapbox.navigation:android:2.17.6")
+
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")

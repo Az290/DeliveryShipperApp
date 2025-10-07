@@ -17,6 +17,7 @@ import com.example.deliveryshipperapp.ui.orders.DeliveryScreen
 import com.example.deliveryshipperapp.ui.orders.OrderDetailScreen
 import com.example.deliveryshipperapp.ui.profile.ProfileScreen
 import com.example.deliveryshipperapp.ui.chat.ChatScreen
+import com.example.deliveryshipperapp.ui.map.MapFullScreen
 import kotlinx.coroutines.delay
 
 @Composable
@@ -59,6 +60,17 @@ fun MainNavGraph(rootNavController: NavHostController) {
             }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(navController = rootNavController)
+            }
+
+
+            composable(
+                route = "map_full/{driverLat}/{driverLng}/{userLat}/{userLng}"
+            ) { backStackEntry ->
+                val driverLat = backStackEntry.arguments?.getString("driverLat")!!.toDouble()
+                val driverLng = backStackEntry.arguments?.getString("driverLng")!!.toDouble()
+                val userLat = backStackEntry.arguments?.getString("userLat")!!.toDouble()
+                val userLng = backStackEntry.arguments?.getString("userLng")!!.toDouble()
+                MapFullScreen(driverLat, driverLng, userLat, userLng)
             }
 
 

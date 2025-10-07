@@ -2,6 +2,7 @@ package com.example.deliveryshipperapp.ui.orders
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -286,10 +287,25 @@ fun OrderDetailScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(250.dp),
+                                .height(250.dp)
+                                .clickable {
+                                    navController.navigate(
+                                        "map_full/${order.latitude}/${order.longitude}/${order.latitude}/${order.longitude}"
+                                    )
+                                },
                             shape = RoundedCornerShape(20.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
+                            MapScreen(
+                                userLat = order.latitude,
+                                userLng = order.longitude,
+                                driverLat = order.latitude,
+                                driverLng = order.longitude,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+
+
                             Column {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
