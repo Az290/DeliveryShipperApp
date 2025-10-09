@@ -16,6 +16,20 @@ import org.json.JSONObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import android.util.Base64
+
+fun extractUserIdFromToken(token: String): Long? {
+    return try {
+        val parts = token.split(".")
+        if (parts.size < 2) return null
+        val payloadJson = String(Base64.decode(parts[1], Base64.URL_SAFE or Base64.NO_WRAP))
+        val payload = JSONObject(payloadJson)
+        payload.optLong("user_id", -1L)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
@@ -30,6 +44,8 @@ class ChatViewModel @Inject constructor(
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient()
     private val gson = Gson()
+    var shipperId: Long? = null
+        private set
 
     /** Khi khởi tạo, tải các đoạn chat đã lưu tạm */
     init {
@@ -41,11 +57,15 @@ class ChatViewModel @Inject constructor(
         currentOrderId = orderId
         val url = Constants.BASE_URL.replace("http", "ws") + "ws?token=$accessToken"
         val request = Request.Builder().url(url).build()
-
+        shipperId = extractUserIdFromToken(accessToken)
+        Log.d("ChatVM", "Current shipperId = $shipperId")
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
                 Log.d("ChatVM", "✅ WS connected")
+
             }
+
+
 
             override fun onMessage(ws: WebSocket, text: String) {
                 try {
@@ -92,14 +112,27 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Thêm tin nhắn vào map + lưu cache */
+//    private fun appendMessage(orderId: Long, msg: ChatMessage) {
+//        val map = _conversations.value.toMutableMap()
+//        val list = map[orderId] ?: mutableListOf()
+//        list.add(msg)
+//        map[orderId] = list
+//        _conversations.value = map
+//        saveConversation(orderId, list)
+//    }
     private fun appendMessage(orderId: Long, msg: ChatMessage) {
-        val map = _conversations.value.toMutableMap()
-        val list = map[orderId] ?: mutableListOf()
-        list.add(msg)
-        map[orderId] = list
-        _conversations.value = map
-        saveConversation(orderId, list)
+        val currentMap = _conversations.value.toMutableMap()
+        val oldList = currentMap[orderId] ?: emptyList()
+
+        // ⚡ Tạo list mới để Compose recompose
+        val newList = oldList + msg
+
+        currentMap[orderId] = newList.toMutableList()
+        _conversations.value = currentMap
+
+        saveConversation(orderId, newList)
     }
+
 
     /** Xoá toàn bộ chat của 1 đơn (khi giao xong) */
     fun clearConversation(orderId: Long) {

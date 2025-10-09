@@ -199,7 +199,7 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages) { msg ->
-                        val mine = (msg.fromUserId == -1L)
+                        val mine = (msg.fromUserId == viewModel.shipperId)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
