@@ -135,8 +135,8 @@ class OrdersViewModel @Inject constructor(
                             phone = null,
                             order_status = order.order_status,
                             payment_status = "unpaid",
-                            latitude = 10.762622,
-                            longitude = 106.660172,
+                            latitude = order.latitude,
+                            longitude = order.longitude,
                             total_amount = order.total_amount,
                             thumbnail_id = null,
                             created_at = null

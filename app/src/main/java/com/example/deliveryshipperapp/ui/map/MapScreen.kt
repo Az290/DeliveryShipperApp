@@ -1,9 +1,14 @@
 package com.example.deliveryshipperapp.ui.map
 
-import android.util.Log
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.example.deliveryshipperapp.R
 import com.example.deliveryshipperapp.data.remote.api.DirectionsApi
 import com.example.deliveryshipperapp.data.remote.api.DirectionsResponseRaw
@@ -44,25 +49,36 @@ fun MapScreen(
                     val annotationApi = annotations
                     val manager = annotationApi.createPointAnnotationManager()
 
+                    val drawable = ContextCompat.getDrawable(context, R.mipmap.ic_customerlocation)
+                    val bitmap = Bitmap.createBitmap(
+                        drawable!!.intrinsicWidth,
+                        drawable.intrinsicHeight,
+                        Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = Canvas(bitmap)
+                    drawable.setBounds(0, 0, canvas.width, canvas.height)
+                    drawable.draw(canvas)
+                    style.addImage("customer_icon", bitmap)
+
                     val userPoint = Point.fromLngLat(userLng, userLat)
                     val driverPoint = Point.fromLngLat(driverLng, driverLat)
 
-                    // marker khách
-                    manager.create(PointAnnotationOptions().withPoint(userPoint))
-                    // marker shipper
+                    manager.create(
+                        PointAnnotationOptions()
+                            .withPoint(userPoint)
+                            .withIconImage("customer_icon")
+                    )
                     manager.create(PointAnnotationOptions().withPoint(driverPoint))
 
-                    // camera
                     getMapboxMap().setCamera(
                         CameraOptions.Builder()
                             .center(userPoint)
-                            .zoom(13.0)
+                            .zoom(16.0)
                             .build()
                     )
 
-                    // gọi REST API lấy route
                     val retrofit = Retrofit.Builder()
-                        .baseUrl("https://api.mapbox.com/") // base Mapbox API
+                        .baseUrl("https://api.mapbox.com/")
                         .addConverterFactory(GsonConverterFactory.create())
                         .build()
 
@@ -78,7 +94,6 @@ fun MapScreen(
                             val route = response.routes.firstOrNull()
                             if (route != null) {
                                 val lineString = LineString.fromPolyline(route.geometry, 6)
-                                // vẽ lên map trên Main
                                 launch(Dispatchers.Main) {
                                     style.addSource(
                                         geoJsonSource("route-source") { geometry(lineString) }
@@ -93,12 +108,14 @@ fun MapScreen(
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e("Mapbox", "Route API error: ${e.message}")
+                            android.util.Log.e("Mapbox", "Route API error: ${e.message}")
                         }
                     }
                 }
             }
         },
         modifier = modifier
+            .fillMaxWidth()
+            .height(200.dp)
     )
 }
