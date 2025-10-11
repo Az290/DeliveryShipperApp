@@ -255,28 +255,140 @@ fun MapFullScreen(
                 Icon(Icons.Default.MyLocation, contentDescription = "Vị trí hiện tại")
             }
 
+            //Bị nhảy SANG TRUNG QUỐC CHỈ ĐƯỜNG SANG TRUNG QUỐC
+//            FloatingActionButton(
+//                onClick = {
+//                    val mapboxMap = mapView?.getMapboxMap() ?: return@FloatingActionButton
+//
+//                    //val shipperPoint = Point.fromLngLat(driverLng, driverLat)
+//                    //val shipperPoint = Point.fromLngLat(105.791752, 20.981652)
+//
+//                    val shipperPoint = shipperLatLng ?: Point.fromLngLat(105.791752, 20.981652)
+//
+//                    val customerPoint = Point.fromLngLat(userLng, userLat)
+//                    val accessToken = context.getString(R.string.mapbox_access_token)
+//
+//                    Log.d("MAPBOX_DEBUG", "Shipper Point: ${shipperPoint.latitude()}, ${shipperPoint.longitude()}")
+//                    Log.d("MAPBOX_DEBUG", "Customer Point: ${customerPoint.latitude()}, ${customerPoint.longitude()}")
+//
+//                    val url =
+//                        "https://api.mapbox.com/directions/v5/mapbox/driving/" +
+//                                "${shipperPoint.longitude()},${shipperPoint.latitude()};" +
+//                                "${customerPoint.longitude()},${customerPoint.latitude()}?" +
+//                                "alternatives=false&geometries=polyline6&overview=full&access_token=$accessToken"
+//
+//                    Log.d("MAPBOX_DEBUG", "Request URL: $url")
+//
+//                    Thread {
+//                        try {
+//                            val client = okhttp3.OkHttpClient()
+//                            val request = okhttp3.Request.Builder().url(url).build()
+//                            val response = client.newCall(request).execute()
+//                            val body = response.body?.string()
+//
+//                            if (body != null) {
+//                                val json = org.json.JSONObject(body)
+//                                val routes = json.getJSONArray("routes")
+//                                if (routes.length() > 0) {
+//                                    val route = routes.getJSONObject(0)
+//                                    val geometry = route.getString("geometry")
+//
+//                                    // ✅ decode polyline6 về LineString hợp lệ
+//                                    val lineString = com.mapbox.geojson.LineString.fromPolyline(geometry, 6)
+//                                    val coordinates = lineString.coordinates()
+//
+//                                    Log.d("MAPBOX_DEBUG", "Route points count: ${coordinates.size}")
+//                                    Log.d("MAPBOX_DEBUG", "First point: ${coordinates.first().latitude()}, ${coordinates.first().longitude()}")
+//                                    Log.d("MAPBOX_DEBUG", "Last point: ${coordinates.last().latitude()}, ${coordinates.last().longitude()}")
+//
+//                                    (context as android.app.Activity).runOnUiThread {
+//                                        mapboxMap.getStyle { style ->
+//
+//                                            // Xóa route cũ
+//                                            if (style.styleLayerExists("route-layer")) style.removeStyleLayer("route-layer")
+//                                            if (style.styleSourceExists("route-source")) style.removeStyleSource("route-source")
+//
+//                                            // Vẽ route mới
+//                                            style.addSource(
+//                                                com.mapbox.maps.extension.style.sources.generated.geoJsonSource("route-source") {
+//                                                    geometry(lineString)
+//                                                }
+//                                            )
+//                                            style.addLayer(
+//                                                com.mapbox.maps.extension.style.layers.generated.lineLayer("route-layer", "route-source") {
+//                                                    lineColor("#FF0000")
+//                                                    lineWidth(4.0)
+//                                                    lineOpacity(0.8)
+//                                                }
+//                                            )
+//
+//                                            // Zoom vừa khung
+//                                            if (coordinates.isNotEmpty()) {
+//                                                var minLat = coordinates.first().latitude()
+//                                                var maxLat = coordinates.first().latitude()
+//                                                var minLng = coordinates.first().longitude()
+//                                                var maxLng = coordinates.first().longitude()
+//                                                for (p in coordinates) {
+//                                                    minLat = minOf(minLat, p.latitude())
+//                                                    maxLat = maxOf(maxLat, p.latitude())
+//                                                    minLng = minOf(minLng, p.longitude())
+//                                                    maxLng = maxOf(maxLng, p.longitude())
+//                                                }
+//                                                val centerLat = (minLat + maxLat) / 2
+//                                                val centerLng = (minLng + maxLng) / 2
+//                                                mapboxMap.setCamera(
+//                                                    com.mapbox.maps.CameraOptions.Builder()
+//                                                        .center(Point.fromLngLat(centerLng, centerLat))
+//                                                        .zoom(12.5)
+//                                                        .build()
+//                                                )
+//                                            }
+//                                            Toast.makeText(context, "🧭 Đã hiển thị đường đi hợp lý", Toast.LENGTH_SHORT).show()
+//                                        }
+//                                    }
+//                                } else {
+//                                    (context as android.app.Activity).runOnUiThread {
+//                                        Toast.makeText(context, "Không tìm thấy tuyến đường!", Toast.LENGTH_SHORT).show()
+//                                    }
+//                                }
+//                            }
+//                        } catch (e: Exception) {
+//                            Log.e("MAPBOX_ERROR", "Lỗi lấy tuyến đường: ${e.message}")
+//                            (context as android.app.Activity).runOnUiThread {
+//                                Toast.makeText(context, "Lỗi vẽ đường: ${e.message}", Toast.LENGTH_SHORT).show()
+//                            }
+//                        }
+//                    }.start()
+//                },
+//                modifier = Modifier
+//                    .align(Alignment.BottomEnd)
+//                    .padding(end = 20.dp, bottom = 20.dp),
+//                containerColor = Color(0xFF43A047),
+//                contentColor = Color.White
+//            ) {
+//                Icon(Icons.Default.Route, contentDescription = "Chỉ đường")
+//            }
+
+
             FloatingActionButton(
                 onClick = {
                     val mapboxMap = mapView?.getMapboxMap() ?: return@FloatingActionButton
 
-                    //val shipperPoint = Point.fromLngLat(driverLng, driverLat)
-                    //val shipperPoint = Point.fromLngLat(105.791752, 20.981652)
-
+                    // Lấy tọa độ shipper và khách
                     val shipperPoint = shipperLatLng ?: Point.fromLngLat(105.791752, 20.981652)
-
                     val customerPoint = Point.fromLngLat(userLng, userLat)
-                    val accessToken = context.getString(R.string.mapbox_access_token)
 
-                    Log.d("MAPBOX_DEBUG", "Shipper Point: ${shipperPoint.latitude()}, ${shipperPoint.longitude()}")
-                    Log.d("MAPBOX_DEBUG", "Customer Point: ${customerPoint.latitude()}, ${customerPoint.longitude()}")
+                    Log.d("GEOAPIFY_DEBUG", "Shipper: ${shipperPoint.latitude()}, ${shipperPoint.longitude()}")
+                    Log.d("GEOAPIFY_DEBUG", "Customer: ${customerPoint.latitude()}, ${customerPoint.longitude()}")
 
-                    val url =
-                        "https://api.mapbox.com/directions/v5/mapbox/driving/" +
-                                "${shipperPoint.longitude()},${shipperPoint.latitude()};" +
-                                "${customerPoint.longitude()},${customerPoint.latitude()}?" +
-                                "alternatives=false&geometries=polyline6&overview=full&access_token=$accessToken"
+                    // === Gọi Geoapify Routing API ===
+                    val apiKey = "fd15f9c6b4444a64bef013942942bbfe"
+                    val url = "https://api.geoapify.com/v1/routing?" +
+                            "waypoints=${shipperPoint.latitude()},${shipperPoint.longitude()}|" +
+                            "${customerPoint.latitude()},${customerPoint.longitude()}" +
+                            "&mode=drive&apiKey=$apiKey"
 
-                    Log.d("MAPBOX_DEBUG", "Request URL: $url")
+                    Log.d("GEOAPIFY_DEBUG", "Request URL: $url")
 
                     Thread {
                         try {
@@ -287,74 +399,65 @@ fun MapFullScreen(
 
                             if (body != null) {
                                 val json = org.json.JSONObject(body)
-                                val routes = json.getJSONArray("routes")
-                                if (routes.length() > 0) {
-                                    val route = routes.getJSONObject(0)
-                                    val geometry = route.getString("geometry")
+                                val features = json.getJSONArray("features")
+                                if (features.length() > 0) {
+                                    val geometry = features.getJSONObject(0).getJSONObject("geometry")
+                                    val coords = geometry.getJSONArray("coordinates").getJSONArray(0)
 
-                                    // ✅ decode polyline6 về LineString hợp lệ
-                                    val lineString = com.mapbox.geojson.LineString.fromPolyline(geometry, 6)
-                                    val coordinates = lineString.coordinates()
+                                    val points = mutableListOf<Point>()
+                                    for (i in 0 until coords.length()) {
+                                        val coord = coords.getJSONArray(i)
+                                        val lng = coord.getDouble(0)
+                                        val lat = coord.getDouble(1)
+                                        points.add(Point.fromLngLat(lng, lat))
+                                    }
 
-                                    Log.d("MAPBOX_DEBUG", "Route points count: ${coordinates.size}")
-                                    Log.d("MAPBOX_DEBUG", "First point: ${coordinates.first().latitude()}, ${coordinates.first().longitude()}")
-                                    Log.d("MAPBOX_DEBUG", "Last point: ${coordinates.last().latitude()}, ${coordinates.last().longitude()}")
+                                    Log.d("GEOAPIFY_DEBUG", "Route points: ${points.size}")
 
                                     (context as android.app.Activity).runOnUiThread {
-                                        mapboxMap.getStyle { style ->
+                                        polylineAnnotationManager?.deleteAll()
 
-                                            // Xóa route cũ
-                                            if (style.styleLayerExists("route-layer")) style.removeStyleLayer("route-layer")
-                                            if (style.styleSourceExists("route-source")) style.removeStyleSource("route-source")
+                                        val polyline = com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions()
+                                            .withPoints(points)
+                                            .withLineColor("#FF0000")
+                                            .withLineWidth(5.0)
 
-                                            // Vẽ route mới
-                                            style.addSource(
-                                                com.mapbox.maps.extension.style.sources.generated.geoJsonSource("route-source") {
-                                                    geometry(lineString)
-                                                }
-                                            )
-                                            style.addLayer(
-                                                com.mapbox.maps.extension.style.layers.generated.lineLayer("route-layer", "route-source") {
-                                                    lineColor("#FF0000")
-                                                    lineWidth(4.0)
-                                                    lineOpacity(0.8)
-                                                }
-                                            )
+                                        polylineAnnotationManager?.create(polyline)
 
-                                            // Zoom vừa khung
-                                            if (coordinates.isNotEmpty()) {
-                                                var minLat = coordinates.first().latitude()
-                                                var maxLat = coordinates.first().latitude()
-                                                var minLng = coordinates.first().longitude()
-                                                var maxLng = coordinates.first().longitude()
-                                                for (p in coordinates) {
-                                                    minLat = minOf(minLat, p.latitude())
-                                                    maxLat = maxOf(maxLat, p.latitude())
-                                                    minLng = minOf(minLng, p.longitude())
-                                                    maxLng = maxOf(maxLng, p.longitude())
-                                                }
-                                                val centerLat = (minLat + maxLat) / 2
-                                                val centerLng = (minLng + maxLng) / 2
-                                                mapboxMap.setCamera(
-                                                    com.mapbox.maps.CameraOptions.Builder()
-                                                        .center(Point.fromLngLat(centerLng, centerLat))
-                                                        .zoom(12.5)
-                                                        .build()
-                                                )
+                                        // Zoom vừa khung
+                                        if (points.isNotEmpty()) {
+                                            var minLat = points.first().latitude()
+                                            var maxLat = points.first().latitude()
+                                            var minLng = points.first().longitude()
+                                            var maxLng = points.first().longitude()
+                                            for (p in points) {
+                                                minLat = minOf(minLat, p.latitude())
+                                                maxLat = maxOf(maxLat, p.latitude())
+                                                minLng = minOf(minLng, p.longitude())
+                                                maxLng = maxOf(maxLng, p.longitude())
                                             }
-                                            Toast.makeText(context, "🧭 Đã hiển thị đường đi hợp lý", Toast.LENGTH_SHORT).show()
+                                            val centerLat = (minLat + maxLat) / 2
+                                            val centerLng = (minLng + maxLng) / 2
+                                            mapboxMap.setCamera(
+                                                com.mapbox.maps.CameraOptions.Builder()
+                                                    .center(Point.fromLngLat(centerLng, centerLat))
+                                                    .zoom(12.0)
+                                                    .build()
+                                            )
                                         }
+
+                                        Toast.makeText(context, "🧭 Hiển thị tuyến từ Geoapify thành công", Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
                                     (context as android.app.Activity).runOnUiThread {
-                                        Toast.makeText(context, "Không tìm thấy tuyến đường!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Không có tuyến từ Geoapify", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e("MAPBOX_ERROR", "Lỗi lấy tuyến đường: ${e.message}")
+                            Log.e("GEOAPIFY_ERROR", "Lỗi lấy tuyến: ${e.message}")
                             (context as android.app.Activity).runOnUiThread {
-                                Toast.makeText(context, "Lỗi vẽ đường: ${e.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Lỗi vẽ tuyến: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }.start()
@@ -365,8 +468,9 @@ fun MapFullScreen(
                 containerColor = Color(0xFF43A047),
                 contentColor = Color.White
             ) {
-                Icon(Icons.Default.Route, contentDescription = "Chỉ đường")
+                Icon(Icons.Default.Route, contentDescription = "Chỉ đường (Geoapify)")
             }
+
 
 
 
