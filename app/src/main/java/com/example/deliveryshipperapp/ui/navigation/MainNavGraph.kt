@@ -14,7 +14,6 @@ import com.example.deliveryshipperapp.data.local.DataStoreManager
 import com.example.deliveryshipperapp.ui.orders.OrdersListScreen
 import com.example.deliveryshipperapp.ui.orders.OrdersViewModel
 import com.example.deliveryshipperapp.ui.orders.DeliveryScreen
-import com.example.deliveryshipperapp.ui.orders.OrderDetailScreen
 import com.example.deliveryshipperapp.ui.profile.ProfileScreen
 import com.example.deliveryshipperapp.ui.chat.ChatScreen
 import com.example.deliveryshipperapp.ui.map.MapFullScreen
@@ -49,10 +48,6 @@ fun MainNavGraph(rootNavController: NavHostController) {
                     ordersViewModel.loadMyOrders()
                 }
                 OrdersListScreen(navController, viewModel = ordersViewModel, mode = "shipping")
-            }
-            composable("order/{id}") { backStack ->
-                val id = backStack.arguments?.getString("id")?.toLong() ?: 0L
-                OrderDetailScreen(orderId = id, navController = navController, viewModel = ordersViewModel)
             }
             composable("delivery/{id}") { backStack ->
                 val id = backStack.arguments?.getString("id")?.toLong() ?: 0L

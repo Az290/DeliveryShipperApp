@@ -1,7 +1,8 @@
 package com.example.deliveryshipperapp.ui.orders
 
+import android.content.Intent // ✅ Thêm import
+import android.net.Uri        // ✅ Thêm import
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -13,8 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext // ✅ Thêm import
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,9 +23,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.deliveryshipperapp.ui.chat.ChatViewModel
 import com.example.deliveryshipperapp.ui.map.MapScreen
+import com.example.deliveryshipperapp.ui.navigation.BottomNavItem
 import com.example.deliveryshipperapp.utils.Resource
 import kotlinx.coroutines.delay
-import com.example.deliveryshipperapp.ui.navigation.BottomNavItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,7 @@ fun DeliveryScreen(
     viewModel: OrdersViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current // ✅ Lấy context để dùng cho Intent gọi điện và Toast
     val orderDetail by viewModel.orderDetail.collectAsState()
     val updateState by viewModel.updateOrderState.collectAsState()
 
@@ -61,7 +63,6 @@ fun DeliveryScreen(
                         )
                     }
                 },
-                // ✅ NÚT BACK (Đã có sẵn ở đây)
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
@@ -123,7 +124,6 @@ fun DeliveryScreen(
                                     }
                                     Spacer(Modifier.height(16.dp))
 
-                                    // 🛑 ĐÃ SỬA: Dùng Divider (thay vì HorizontalDivider) để tương thích bản cũ
                                     Divider(color = Color(0xFFEEEEEE))
 
                                     Spacer(Modifier.height(16.dp))
@@ -161,6 +161,7 @@ fun DeliveryScreen(
                                             Text(
                                                 text = "Vị trí khách hàng",
                                                 modifier = Modifier.clickable {
+                                                    // Lưu ý: Nếu muốn dẫn đường Google Maps thì cần Intent khác, ở đây đang navigate trong app
                                                     navController.navigate("map_full/10.762622/106.660172/${orderData.latitude}/${orderData.longitude}")
                                                 },
                                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color(0xFF667eea))
@@ -195,7 +196,17 @@ fun DeliveryScreen(
 
                                 if (!orderData.phone.isNullOrEmpty()) {
                                     OutlinedButton(
-                                        onClick = { /* Call logic */ },
+                                        onClick = {
+                                            // ✅ LOGIC GỌI ĐIỆN
+                                            try {
+                                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                                    data = Uri.parse("tel:${orderData.phone}")
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Không thể mở trình gọi điện", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
                                         modifier = Modifier.weight(1f).height(56.dp),
                                         shape = RoundedCornerShape(16.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4CAF50))
@@ -225,7 +236,7 @@ fun DeliveryScreen(
                                 is Resource.Success -> {
                                     LaunchedEffect(Unit) {
                                         chatViewModel.clearConversation(orderData.id)
-                                        Toast.makeText(navController.context, "✅ Thành công!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "✅ Thành công!", Toast.LENGTH_SHORT).show()
                                         delay(500)
                                         viewModel.resetUpdateOrderState()
                                         navController.navigate(BottomNavItem.Home.route) {
