@@ -1,7 +1,6 @@
 package com.example.deliveryshipperapp.ui.splash
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.LinearProgressIndicator
@@ -13,16 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.deliveryshipperapp.R
 import com.example.deliveryshipperapp.data.local.DataStoreManager
 import com.example.deliveryshipperapp.data.remote.ApiClient
 import com.example.deliveryshipperapp.data.remote.api.AuthApi
 import com.example.deliveryshipperapp.data.remote.dto.AuthResponseDto
+import com.example.deliveryshipperapp.data.remote.dto.RefreshTokenRequestDto
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -58,43 +56,61 @@ fun SplashScreen(navController: NavHostController) {
         // Hiển thị splash ít nhất 1 giây để load hình đẹp hơn
         delay(1000)
 
+        // Lấy token từ bộ nhớ
         val accessToken = dataStore.accessToken.first()
         val refreshToken = dataStore.refreshToken.first()
 
-        // Nếu chưa có token thì đi thẳng login
-        if (accessToken.isNullOrEmpty() && refreshToken.isNullOrEmpty()) {
+        // 🛑 FIX 1: KIỂM TRA CHẶT CHẼ
+        // Nếu không có Refresh Token (hoặc rỗng do lỗi cũ) -> Bắt đăng nhập lại ngay
+        // (Tránh việc gửi chuỗi rỗng lên Server gây lỗi 400 Bad Request)
+        if (refreshToken.isNullOrEmpty()) {
             navController.navigate("login") {
                 popUpTo(0) { inclusive = true }
             }
             return@LaunchedEffect
         }
 
+        // Tạo API Client
         val authApi = ApiClient.create().create(AuthApi::class.java)
+
         try {
-            // Gửi refresh token để đảm bảo access token còn hạn
-            val response = authApi.refreshAccessToken(mapOf("refresh_token" to (refreshToken ?: "")))
+            // Gửi refresh token lên server (Lúc này chắc chắn refreshToken không rỗng)
+            val response = authApi.refreshAccessToken(RefreshTokenRequestDto(refreshToken))
 
             if (response.isSuccessful && response.body() != null) {
                 val tokens: AuthResponseDto = response.body()!!
+
                 scope.launch {
-                    dataStore.saveTokens(tokens.access_token, tokens.refresh_token)
+                    // 🛑 FIX 2: XỬ LÝ LỖI CHÍNH TẢ TỪ SERVER
+                    // Dùng hàm getRefreshTokenValue() để lấy đúng token dù server trả về 'refersh_token' hay 'refresh_token'
+                    val finalRefreshToken = tokens.getRefreshTokenValue() ?: ""
+
+                    dataStore.saveTokens(tokens.accessToken, finalRefreshToken)
                 }
+
+                // Vào màn hình chính
                 navController.navigate("main") {
                     popUpTo(0) { inclusive = true }
                 }
             } else {
+                // Token hết hạn hoặc không hợp lệ -> Login
                 navController.navigate("login") {
                     popUpTo(0) { inclusive = true }
                 }
             }
         } catch (e: IOException) {
+            // Lỗi mạng -> Login
             navController.navigate("login") { popUpTo(0) { inclusive = true } }
         } catch (e: HttpException) {
+            // Lỗi server -> Login
+            navController.navigate("login") { popUpTo(0) { inclusive = true } }
+        } catch (e: Exception) {
+            // Các lỗi khác
             navController.navigate("login") { popUpTo(0) { inclusive = true } }
         }
     }
 
-    // Giao diện Splash
+    // --- PHẦN GIAO DIỆN (GIỮ NGUYÊN) ---
     Box(
         modifier = Modifier
             .fillMaxSize()

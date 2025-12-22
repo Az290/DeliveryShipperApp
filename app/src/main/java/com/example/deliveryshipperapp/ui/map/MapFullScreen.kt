@@ -17,6 +17,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack // [MỚI] Thêm import icon Back
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Route
@@ -66,7 +67,8 @@ fun MapFullScreen(
     driverLat: Double,
     driverLng: Double,
     userLat: Double,
-    userLng: Double
+    userLng: Double,
+    onBack: () -> Unit // [MỚI] Thêm tham số callback để xử lý quay lại
 ) {
     var shipperLatLng by remember { mutableStateOf<Point?>(null) }
 
@@ -91,6 +93,16 @@ fun MapFullScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Lộ trình giao hàng") },
+                // [MỚI] Thêm nút Back vào thanh tiêu đề
+                navigationIcon = {
+                    IconButton(onClick = { onBack() }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF667eea),
                     titleContentColor = Color.White
@@ -480,6 +492,8 @@ fun MapFullScreen(
         }
     }
 
-    BackHandler { }
+    // [MỚI] Gọi callback khi nhấn Back cứng trên Android
+    BackHandler {
+        onBack()
+    }
 }
-

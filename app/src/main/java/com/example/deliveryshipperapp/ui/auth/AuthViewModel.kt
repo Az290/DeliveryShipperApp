@@ -27,7 +27,7 @@ class AuthViewModel @Inject constructor(
             val res = loginUseCase(email,password)
             if(res is Resource.Success){
                 val data = res.data!!
-                authRepo.saveTokens(data.access_token,data.refresh_token)
+                authRepo.saveTokens(data.accessToken, data.refreshToken ?: "")
             }
             _loginState.value = res
         }

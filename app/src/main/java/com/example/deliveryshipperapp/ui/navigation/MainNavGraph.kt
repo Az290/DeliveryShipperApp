@@ -70,7 +70,9 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 val driverLng = backStackEntry.arguments?.getString("driverLng")!!.toDouble()
                 val userLat = backStackEntry.arguments?.getString("userLat")!!.toDouble()
                 val userLng = backStackEntry.arguments?.getString("userLng")!!.toDouble()
-                MapFullScreen(driverLat, driverLng, userLat, userLng)
+                MapFullScreen(driverLat, driverLng, userLat, userLng,onBack = {
+                    navController.popBackStack()
+                })
             }
 
 

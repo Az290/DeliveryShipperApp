@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -100,7 +99,7 @@ fun OrdersListScreen(
                     }
                 },
                 actions = {
-                    // Nút refresh
+                    // Nút refresh (GIỮ LẠI)
                     IconButton(
                         onClick = {
                             if (mode == "processing") viewModel.loadAvailableOrders()
@@ -113,14 +112,7 @@ fun OrdersListScreen(
                             tint = Color.White
                         )
                     }
-                    // Nút logout
-                    IconButton(onClick = { /* TODO: logout */ }) {
-                        Icon(
-                            Icons.Default.ExitToApp,
-                            contentDescription = "Đăng xuất",
-                            tint = Color.White
-                        )
-                    }
+                    // ❌ ĐÃ XÓA NÚT LOGOUT TẠI ĐÂY
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF667eea),
@@ -291,7 +283,6 @@ fun OrdersListContent(
         }
     }
 }
-//liệt kê các đơn hàng có thể giao và đang khóa với UI đẹp
 
 @Composable
 fun OrderCard(
@@ -320,21 +311,18 @@ fun OrderCard(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White // ❌ bỏ alpha để không bị mờ viền xám
+            containerColor = Color.White
         )
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Nội dung chính
             Column(
                 modifier = Modifier
                     .padding(16.dp)
-                    // ❌ KHÔNG giảm opacity tổng thể nữa
-                    .alpha(if (isLocked) 0.6f else 1f) // chỉ làm mờ nhẹ nội dung thôi
+                    .alpha(if (isLocked) 0.6f else 1f)
             ) {
                 OrderCardContent(order = order, isLocked = isLocked)
             }
 
-            // Dòng cảnh báo vàng
             if (isLocked) {
                 LockedOrderWarning()
             }
@@ -351,10 +339,9 @@ private fun OrderCardContent(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Thumbnail
+        // ✅ ĐÃ SỬA: Thay thumbnail_id bằng thumbnail
         OrderThumbnail(thumbnailUrl = order.thumbnail)
 
-        // Info đơn hàng
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -468,8 +455,6 @@ private fun LockedOrderWarning() {
     }
 }
 
-// ===== Helper Functions =====
-
 private fun shouldLockOrder(
     mode: String,
     index: Int,
@@ -530,8 +515,6 @@ private fun formatCurrency(amount: Double): String {
     return String.format("%,.0f", amount)
 }
 
-// ===== Data Classes & Constants =====
-
 private data class OrderStatusStyle(
     val emoji: String,
     val label: String,
@@ -549,4 +532,3 @@ object OrderMode {
     const val PROCESSING = "processing"
     const val SHIPPING = "shipping"
 }
-

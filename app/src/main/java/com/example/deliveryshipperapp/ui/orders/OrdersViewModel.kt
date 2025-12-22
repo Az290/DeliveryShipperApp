@@ -128,23 +128,21 @@ class OrdersViewModel @Inject constructor(
 
                     if (order != null) {
                         Log.d(TAG, "Đã tìm thấy đơn hàng #${orderId} trong danh sách có sẵn")
-                        val orderDto = OrderDto(
+
+                        // ✅ ĐÃ SỬA: Khởi tạo OrderDetailDto theo cấu trúc phẳng mới
+                        val detailDto = OrderDetailDto(
                             id = order.id,
-                            user_id = 0,
-                            user_name = null,
+                            user_id = order.user_id ?: 0,
+                            user_name = "Khách hàng",
                             phone = null,
                             order_status = order.order_status,
-                            payment_status = "unpaid",
+                            payment_status = order.payment_status ?: "unpaid",
                             latitude = order.latitude,
                             longitude = order.longitude,
                             total_amount = order.total_amount,
-                            thumbnail_id = null,
-                            created_at = null
-                        )
-
-                        val detailDto = OrderDetailDto(
-                            order = orderDto,
-                            items = emptyList()
+                            created_at = null,
+                            updated_at = null,
+                            items = emptyList() // Đơn từ danh sách tóm tắt chưa có items
                         )
 
                         _orderDetail.value = Resource.Success(detailDto)

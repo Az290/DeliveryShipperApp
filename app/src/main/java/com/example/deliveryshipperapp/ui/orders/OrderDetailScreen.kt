@@ -1,7 +1,6 @@
 package com.example.deliveryshipperapp.ui.orders
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -73,8 +72,10 @@ fun OrderDetailScreen(
         }
     }
 
+    // 🔴 [SỬA QUAN TRỌNG] Thay vì lấy từ List cũ (có thể thiếu toạ độ),
+    // ta gọi API chi tiết để lấy toạ độ mới nhất.
     LaunchedEffect(orderId) {
-        viewModel.loadOrderFromAvailableList(orderId)
+        viewModel.loadOrderDetail(orderId)
     }
 
     Scaffold(
@@ -131,7 +132,7 @@ fun OrderDetailScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            when (state) {
+            when (val res = state) {
                 is Resource.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -178,7 +179,7 @@ fun OrderDetailScreen(
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = (state as Resource.Error).message ?: "Vui lòng thử lại",
+                                text = res.message ?: "Vui lòng thử lại",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     color = Color.Gray
                                 )
@@ -188,8 +189,12 @@ fun OrderDetailScreen(
                 }
 
                 is Resource.Success -> {
-                    val dto = (state as Resource.Success).data!!
-                    val order = dto.order
+                    val dto = res.data!!
+
+                    // 🔴 [SỬA THÊM] Logic an toàn: Nếu API trả về 0,0 thì dùng toạ độ Hà Nội mặc định
+                    // Để tránh Map hiển thị giữa biển
+                    val safeLat = if (dto.latitude != 0.0) dto.latitude else 21.028511
+                    val safeLng = if (dto.longitude != 0.0) dto.longitude else 105.804817
 
                     Column(
                         modifier = Modifier
@@ -217,7 +222,7 @@ fun OrderDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Đơn hàng #${order.id}",
+                                        text = "Đơn hàng #${dto.id}",
                                         style = MaterialTheme.typography.titleLarge.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF667eea),
@@ -227,7 +232,7 @@ fun OrderDetailScreen(
 
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = when(order.order_status) {
+                                        color = when(dto.order_status) {
                                             "processing" -> Color(0xFFFFA726).copy(alpha = 0.2f)
                                             "shipping" -> Color(0xFF42A5F5).copy(alpha = 0.2f)
                                             "delivered" -> Color(0xFF66BB6A).copy(alpha = 0.2f)
@@ -235,15 +240,15 @@ fun OrderDetailScreen(
                                         }
                                     ) {
                                         Text(
-                                            text = when(order.order_status) {
+                                            text = when(dto.order_status) {
                                                 "processing" -> "🔄 Chờ xử lý"
                                                 "shipping" -> "🚚 Đang giao"
                                                 "delivered" -> "✅ Đã giao"
-                                                else -> order.order_status
+                                                else -> dto.order_status
                                             },
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 fontWeight = FontWeight.Bold,
-                                                color = when(order.order_status) {
+                                                color = when(dto.order_status) {
                                                     "processing" -> Color(0xFFF57C00)
                                                     "shipping" -> Color(0xFF1976D2)
                                                     "delivered" -> Color(0xFF2E7D32)
@@ -263,10 +268,10 @@ fun OrderDetailScreen(
                                 DetailInfoRow(
                                     icon = "💳",
                                     label = "Thanh toán",
-                                    value = when(order.payment_status) {
+                                    value = when(dto.payment_status) {
                                         "paid" -> "Đã thanh toán"
-                                        "pending" -> "Chờ thanh toán"
-                                        else -> order.payment_status
+                                        "unpaid" -> "Chưa thanh toán"
+                                        else -> dto.payment_status
                                     }
                                 )
 
@@ -275,8 +280,8 @@ fun OrderDetailScreen(
                                 DetailInfoRow(
                                     icon = "💰",
                                     label = "Tổng tiền",
-                                    value = "${String.format("%,.0f", order.total_amount)} đ",
-                                            valueColor = Color(0xFF667eea)
+                                    value = "${String.format("%,.0f", dto.total_amount)} đ",
+                                    valueColor = Color(0xFF667eea)
                                 )
                             }
                         }
@@ -289,26 +294,26 @@ fun OrderDetailScreen(
                                 .fillMaxWidth()
                                 .height(250.dp)
                                 .clickable {
+                                    // 🔴 Sử dụng toạ độ an toàn safeLat/safeLng
                                     navController.navigate(
-                                        "map_full/${order.latitude}/${order.longitude}/${order.latitude}/${order.longitude}"
+                                        "map_full/${safeLat}/${safeLng}/${safeLat}/${safeLng}"
                                     )
                                 },
                             shape = RoundedCornerShape(20.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
-                            MapScreen(
-                                userLat = order.latitude,
-                                userLng = order.longitude,
-                                driverLat = order.latitude,
-                                driverLng = order.longitude,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            Box {
+                                // 🔴 Sử dụng toạ độ an toàn safeLat/safeLng
+                                MapScreen(
+                                    userLat = safeLat,
+                                    userLng = safeLng,
+                                    driverLat = safeLat, // Đang xem chi tiết nên để driver=user để focus 1 điểm
+                                    driverLng = safeLng,
+                                    modifier = Modifier.fillMaxSize()
+                                )
 
-
-
-                            Column {
                                 Surface(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().align(Alignment.TopStart),
                                     color = Color(0xFF667eea).copy(alpha = 0.1f)
                                 ) {
                                     Row(
@@ -331,14 +336,6 @@ fun OrderDetailScreen(
                                         )
                                     }
                                 }
-
-                                MapScreen(
-                                    userLat = order.latitude,
-                                    userLng = order.longitude,
-                                    driverLat = order.latitude,
-                                    driverLng = order.longitude,
-                                    modifier = Modifier.fillMaxSize()
-                                )
                             }
                         }
 
@@ -426,7 +423,7 @@ fun OrderDetailScreen(
                                             }
 
                                             Text(
-                                                text = "${String.format("%,d", item.subtotal)} đ",
+                                                text = "${String.format("%,d", item.subtotal.toLong())} đ",
                                                 style = MaterialTheme.typography.bodyMedium.copy(
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFF667eea)
@@ -450,12 +447,12 @@ fun OrderDetailScreen(
                         Column(
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            when (order.order_status) {
+                            when (dto.order_status) {
                                 "processing" -> {
                                     Button(
                                         onClick = {
                                             scope.launch {
-                                                val success = viewModel.acceptOrderAndWaitForUpdate(order.id, order.user_id)
+                                                val success = viewModel.acceptOrderAndWaitForUpdate(dto.id, dto.user_id)
                                                 if (success) {
                                                     if (!isFirstOrderReceived) {
                                                         delay(500)
@@ -511,7 +508,7 @@ fun OrderDetailScreen(
 
                                 "shipping" -> {
                                     Button(
-                                        onClick = { viewModel.markDelivered(order.id) },
+                                        onClick = { viewModel.markDelivered(dto.id) },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(56.dp),
@@ -610,7 +607,7 @@ fun OrderDetailScreen(
                                         color = Color.Gray.copy(alpha = 0.1f)
                                     ) {
                                         Text(
-                                            text = "Trạng thái: ${order.order_status}",
+                                            text = "Trạng thái: ${dto.order_status}",
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(20.dp),
