@@ -5,11 +5,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.deliveryshipperapp.data.remote.dto.OrderDetailDto
-import com.example.deliveryshipperapp.data.remote.dto.OrderDto
 import com.example.deliveryshipperapp.data.remote.dto.OrdersListResponse
 import com.example.deliveryshipperapp.data.remote.dto.UserDto
 import com.example.deliveryshipperapp.domain.usecase.*
-import com.example.deliveryshipperapp.ui.chat.ChatViewModel
 import com.example.deliveryshipperapp.utils.NotificationHelper
 import com.example.deliveryshipperapp.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,13 +22,42 @@ private const val TAG = "OrdersViewModel"
 
 @HiltViewModel
 class OrdersViewModel @Inject constructor(
-    private val getAvailableOrders: GetAvailableOrdersUseCase,   // cho processing
-    private val getReceivedOrders: GetReceivedOrdersUseCase,     // cho shipping
+    private val getAvailableOrders: GetAvailableOrdersUseCase,
+    private val getReceivedOrders: GetReceivedOrdersUseCase,
     private val getOrderDetail: GetOrderDetailUseCase,
     private val receiveOrder: ReceiveOrderUseCase,
     private val updateOrder: UpdateOrderUseCase,
-    @ApplicationContext private val context: Context,     // ✅ thêm ChatViewModel để xoá chat của đơn hàng đã giao
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    // Helper function để xử lý an toàn dữ liệu trả về
+    // Nếu orders bị null, hàm này sẽ trả về một object mới với emptyList
+    private fun sanitizeResponse(original: OrdersListResponse?): OrdersListResponse {
+        val safeOrders = original?.orders ?: emptyList()
+        // Sử dụng copy để giữ các trường khác, chỉ thay thế list orders
+        // Nếu original null thì tạo mới hoàn toàn
+        return original?.copy(orders = safeOrders)
+            ?: try {
+                // Thử constructor 1 tham số (List)
+                OrdersListResponse(orders = emptyList())
+            } catch (e: Exception) {
+                // Fallback: Nếu class này có constructor khác, bạn cần chỉnh dòng này
+                // Ví dụ nếu constructor có 2 tham số: OrdersListResponse(emptyList(), null)
+                throw RuntimeException("Vui lòng kiểm tra constructor OrdersListResponse: ${e.message}")
+            }
+    }
+
+    // ✅ THÊM MỚI: Helper để xử lý Resource trả về an toàn
+    private fun safeResource(result: Resource<OrdersListResponse>): Resource<OrdersListResponse> {
+        return when (result) {
+            is Resource.Success -> {
+                val safeData = sanitizeResponse(result.data)
+                Resource.Success(safeData)
+            }
+            is Resource.Error -> result
+            is Resource.Loading -> result
+        }
+    }
 
     private val _availableOrders = MutableStateFlow<Resource<OrdersListResponse>>(Resource.Loading())
     val availableOrders: StateFlow<Resource<OrdersListResponse>> = _availableOrders
@@ -53,21 +80,17 @@ class OrdersViewModel @Inject constructor(
     private val _currentChatOrder = MutableStateFlow<Pair<Long, Long>?>(null)
     val currentChatOrder: StateFlow<Pair<Long, Long>?> = _currentChatOrder
 
-    // Thêm biến mới để theo dõi đã nhận đơn đầu tiên chưa
     private val _isFirstOrderReceived = MutableStateFlow(false)
     val isFirstOrderReceived: StateFlow<Boolean> = _isFirstOrderReceived
 
-    // Thêm state lưu trữ ID đơn hàng đã chọn
     private val _selectedOrderId = MutableStateFlow<Long?>(null)
     val selectedOrderId: StateFlow<Long?> = _selectedOrderId
 
     init {
-        // khi mở app load cả 2
         loadAvailableOrders()
         loadMyOrders()
     }
 
-    // Lưu ID của đơn hàng được chọn
     fun selectOrder(orderId: Long) {
         _selectedOrderId.value = orderId
     }
@@ -79,10 +102,14 @@ class OrdersViewModel @Inject constructor(
             try {
                 Log.d(TAG, "Đang tải danh sách đơn có thể nhận...")
                 val result = getAvailableOrders()
-                _availableOrders.value = result
-                if (result is Resource.Success) {
-                    Log.d(TAG, "Tải danh sách đơn có thể nhận thành công: ${result.data?.orders?.size ?: 0} đơn")
-                }
+
+                // --- SỬA LỖI CRASH Ở ĐÂY ---
+                _availableOrders.value = safeResource(result)
+
+                val orderCount = (_availableOrders.value as? Resource.Success)?.data?.orders?.size ?: 0
+                Log.d(TAG, "Tải danh sách đơn có thể nhận thành công: $orderCount đơn")
+                // ---------------------------
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error available orders: ${e.message}")
                 _availableOrders.value = Resource.Error("Không thể tải đơn khả dụng: ${e.message}")
@@ -97,13 +124,22 @@ class OrdersViewModel @Inject constructor(
             try {
                 Log.d(TAG, "Đang tải danh sách đơn của tôi...")
                 val result = getReceivedOrders()
-                _myOrders.value = result
-                if (result is Resource.Success) {
-                    Log.d(TAG, "Tải danh sách đơn của tôi thành công: ${result.data?.orders?.size ?: 0} đơn")
-                    result.data?.orders?.forEach { order ->
+
+                // --- SỬA LỖI CRASH Ở ĐÂY ---
+                _myOrders.value = safeResource(result)
+
+                val orderCount = (_myOrders.value as? Resource.Success)?.data?.orders?.size ?: 0
+                Log.d(TAG, "Tải danh sách đơn của tôi thành công: $orderCount đơn")
+
+                // Log chi tiết nếu có đơn
+                if (_myOrders.value is Resource.Success) {
+                    val orders = (_myOrders.value as Resource.Success).data?.orders ?: emptyList()
+                    orders.forEach { order ->
                         Log.d(TAG, "Đơn #${order.id}: ${order.order_status}")
                     }
                 }
+                // ---------------------------
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error my orders: ${e.message}")
                 _myOrders.value = Resource.Error("Không thể tải đơn shipper: ${e.message}")
@@ -111,7 +147,6 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /** Phương thức mới - Tìm đơn hàng từ danh sách có sẵn */
     fun loadOrderFromAvailableList(orderId: Long) {
         viewModelScope.launch {
             _orderDetail.value = Resource.Loading()
@@ -124,12 +159,12 @@ class OrdersViewModel @Inject constructor(
 
                 val currentOrders = _availableOrders.value
                 if (currentOrders is Resource.Success) {
-                    val order = currentOrders.data?.orders?.find { it.id == orderId }
+                    // Cần xử lý null safe ở đây nữa để tránh crash logic
+                    val safeList = currentOrders.data?.orders ?: emptyList()
+                    val order = safeList.find { it.id == orderId }
 
                     if (order != null) {
                         Log.d(TAG, "Đã tìm thấy đơn hàng #${orderId} trong danh sách có sẵn")
-
-                        // ✅ ĐÃ SỬA: Khởi tạo OrderDetailDto theo cấu trúc phẳng mới
                         val detailDto = OrderDetailDto(
                             id = order.id,
                             user_id = order.user_id ?: 0,
@@ -142,16 +177,14 @@ class OrdersViewModel @Inject constructor(
                             total_amount = order.total_amount,
                             created_at = null,
                             updated_at = null,
-                            items = emptyList() // Đơn từ danh sách tóm tắt chưa có items
+                            items = emptyList()
                         )
-
                         _orderDetail.value = Resource.Success(detailDto)
                     } else {
-                        Log.d(TAG, "Không tìm thấy đơn hàng #${orderId} trong danh sách, gọi API chi tiết")
+                        Log.d(TAG, "Không tìm thấy đơn hàng, gọi API chi tiết")
                         loadOrderDetail(orderId)
                     }
                 } else {
-                    Log.d(TAG, "Danh sách đơn không có sẵn, gọi API chi tiết")
                     loadOrderDetail(orderId)
                 }
             } catch (e: Exception) {
@@ -161,7 +194,6 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /** Chi tiết đơn + thông tin khách */
     fun loadOrderDetail(orderId: Long) {
         viewModelScope.launch {
             _orderDetail.value = Resource.Loading()
@@ -169,10 +201,6 @@ class OrdersViewModel @Inject constructor(
                 Log.d(TAG, "Đang tải chi tiết đơn hàng #${orderId}...")
                 val detail = getOrderDetail(orderId)
                 _orderDetail.value = detail
-
-                if (detail is Resource.Success && detail.data != null) {
-                    Log.d(TAG, "Tải chi tiết đơn hàng thành công")
-                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading order detail: ${e.message}")
                 _orderDetail.value = Resource.Error("Không thể tải chi tiết đơn: ${e.message}")
@@ -180,14 +208,11 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /** Phương thức mới - Nhận đơn và đợi cập nhật hoàn tất */
     suspend fun acceptOrderAndWaitForUpdate(orderId: Long, customerId: Long): Boolean {
         _receiveOrderState.value = Resource.Loading()
-
         try {
             Log.d(TAG, "Đang gọi API nhận đơn: $orderId")
             val result = receiveOrder(orderId)
-            Log.d(TAG, "Kết quả nhận đơn: $result")
             _receiveOrderState.value = result
 
             if (result is Resource.Success) {
@@ -205,12 +230,18 @@ class OrdersViewModel @Inject constructor(
 
                 _myOrders.value = Resource.Loading()
                 val myOrdersResult = getReceivedOrders()
-                _myOrders.value = myOrdersResult
 
-                if (isFirst && (myOrdersResult is Resource.Success && myOrdersResult.data?.orders?.isEmpty() == true)) {
-                    delay(1000)
-                    val retryResult = getReceivedOrders()
-                    _myOrders.value = retryResult
+                // Xử lý an toàn khi load lại danh sách sau khi nhận đơn
+                _myOrders.value = safeResource(myOrdersResult)
+
+                // Logic retry nếu danh sách vẫn rỗng (do server update chậm)
+                if (isFirst) {
+                    val currentData = (_myOrders.value as? Resource.Success)?.data
+                    if (currentData?.orders.isNullOrEmpty()) {
+                        delay(1000)
+                        val retryResult = getReceivedOrders()
+                        _myOrders.value = safeResource(retryResult)
+                    }
                 }
 
                 loadAvailableOrders()
@@ -224,29 +255,12 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    /** Nhận đơn - phương thức cũ, giữ lại để tương thích */
     fun acceptOrder(orderId: Long, customerId: Long) {
         viewModelScope.launch {
-            _receiveOrderState.value = Resource.Loading()
-            try {
-                Log.d(TAG, "Đang gọi API nhận đơn: $orderId")
-                val result = receiveOrder(orderId)
-                _receiveOrderState.value = result
-                if (result is Resource.Success) {
-                    Log.d(TAG, "Nhận đơn thành công, cập nhật danh sách")
-                    NotificationHelper.showOrderReceivedNotification(context, orderId)
-                    _currentChatOrder.value = Pair(orderId, customerId)
-                    loadAvailableOrders()
-                    loadMyOrders()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error accept: ${e.message}")
-                _receiveOrderState.value = Resource.Error("Nhận đơn thất bại: ${e.message}")
-            }
+            acceptOrderAndWaitForUpdate(orderId, customerId)
         }
     }
 
-    /** Đánh dấu delivered */
     fun markDelivered(orderId: Long) {
         viewModelScope.launch {
             _updateOrderState.value = Resource.Loading()

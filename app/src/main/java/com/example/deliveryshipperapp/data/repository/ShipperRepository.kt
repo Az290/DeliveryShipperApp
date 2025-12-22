@@ -24,31 +24,29 @@ class ShipperRepository(private val api: ShipperApi) {
 
             if (response.isSuccessful) {
                 val orders = response.body()
-                if (orders != null) {
-                    Log.d(TAG, "API trả về ${orders.orders.size} đơn hàng")
+                // ✅ SỬA: Sử dụng safeOrders() thay vì orders.orders
+                val safeOrdersList = orders?.safeOrders() ?: emptyList()
+                Log.d(TAG, "API trả về ${safeOrdersList.size} đơn hàng")
 
-                    // Nếu danh sách trống, đợi một chút và thử lại
-                    if (orders.orders.isEmpty()) {
-                        Log.d(TAG, "Danh sách trống, thử lại sau 800ms")
-                        delay(800)
-                        val retryResponse = api.getReceivedOrders()
+                // Nếu danh sách trống, đợi một chút và thử lại
+                if (safeOrdersList.isEmpty()) {
+                    Log.d(TAG, "Danh sách trống, thử lại sau 800ms")
+                    delay(800)
+                    val retryResponse = api.getReceivedOrders()
 
-                        if (retryResponse.isSuccessful) {
-                            val retryOrders = retryResponse.body()
-                            if (retryOrders != null) {
-                                Log.d(TAG, "Retry API trả về ${retryOrders.orders.size} đơn hàng")
-                                Resource.Success(retryOrders)
-                            } else {
-                                Resource.Success(OrdersListResponse(emptyList()))
-                            }
-                        } else {
-                            Resource.Error(retryResponse.errorBody()?.string() ?: "Unknown error")
-                        }
+                    if (retryResponse.isSuccessful) {
+                        val retryOrders = retryResponse.body()
+                        // ✅ SỬA: Sử dụng safeOrders()
+                        val retrySafeList = retryOrders?.safeOrders() ?: emptyList()
+                        Log.d(TAG, "Retry API trả về ${retrySafeList.size} đơn hàng")
+                        // ✅ Trả về response với list đã safe
+                        Resource.Success(OrdersListResponse(retrySafeList))
                     } else {
-                        Resource.Success(orders)
+                        Resource.Error(retryResponse.errorBody()?.string() ?: "Unknown error")
                     }
                 } else {
-                    Resource.Success(OrdersListResponse(emptyList()))
+                    // ✅ Trả về response với list đã safe
+                    Resource.Success(OrdersListResponse(safeOrdersList))
                 }
             } else {
                 Resource.Error(response.errorBody()?.string() ?: "Unknown error")
@@ -78,15 +76,20 @@ class ShipperRepository(private val api: ShipperApi) {
         }
 
     // Helpers parse Response
+    // ✅ SỬA: Xử lý null-safe trong helper
     private inline fun handleOrdersResponse(apiCall: () -> Response<OrdersListResponse>): Resource<OrdersListResponse> {
         return try {
             val resp = apiCall()
             if (resp.isSuccessful) {
-                resp.body()?.let { Resource.Success(it) } ?: Resource.Success(OrdersListResponse(emptyList()))
+                val body = resp.body()
+                // ✅ Đảm bảo luôn trả về list không null
+                val safeList = body?.safeOrders() ?: emptyList()
+                Resource.Success(OrdersListResponse(safeList))
             } else {
                 Resource.Error(resp.errorBody()?.string() ?: "Unknown error")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi handleOrdersResponse: ${e.message}")
             Resource.Error(e.message ?: "Unexpected error")
         }
     }

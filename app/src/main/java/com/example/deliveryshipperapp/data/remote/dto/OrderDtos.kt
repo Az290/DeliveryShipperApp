@@ -2,9 +2,14 @@ package com.example.deliveryshipperapp.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
+// ✅ SỬA: Cho phép orders nullable và có default value
 data class OrdersListResponse(
-    val orders: List<OrderSummaryDto>
-)
+    @SerializedName("orders")
+    val orders: List<OrderSummaryDto>? = null
+) {
+    // ✅ Helper function để lấy danh sách an toàn
+    fun safeOrders(): List<OrderSummaryDto> = orders ?: emptyList()
+}
 
 data class OrderSummaryDto(
     val id: Long,

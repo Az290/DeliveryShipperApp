@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -199,8 +200,11 @@ fun OrdersListContent(
                 }
             }
             is Resource.Success -> {
-                val orders = state.data?.orders ?: emptyList()
+                // ✅ FIX: Use Elvis operator to default to emptyList() if null
+                val orders: List<OrderSummaryDto> = state.data?.safeOrders() ?: emptyList()
+
                 if (orders.isEmpty()) {
+                    // ✅ Hiển thị empty state giống nhau cho cả 2 tab
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -228,7 +232,8 @@ fun OrdersListContent(
                                     "Bạn chưa có đơn hàng nào đang giao",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     color = Color.Gray
-                                )
+                                ),
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -256,6 +261,7 @@ fun OrdersListContent(
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Text(
+                                        // ✅ Safe to use .size here because 'orders' is guaranteed not null
                                         text = "Tổng: ${orders.size} đơn hàng",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
@@ -266,7 +272,7 @@ fun OrdersListContent(
                             }
                         }
 
-                        // List orders chỉ được mở khóa đơn đầu tiên
+                        // List orders
                         itemsIndexed(orders) { index, order ->
                             OrderCard(
                                 order = order,
