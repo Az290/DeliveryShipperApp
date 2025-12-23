@@ -17,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import android.util.Base64
+import com.example.deliveryshipperapp.data.remote.api.ChatApi
 
 fun extractUserIdFromToken(token: String): Long? {
     return try {
@@ -31,10 +32,17 @@ fun extractUserIdFromToken(token: String): Long? {
     }
 }
 
+//@HiltViewModel
+//class ChatViewModel @Inject constructor(
+//    @ApplicationContext private val appContext: Context
+//) : ViewModel() {
+
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context
+    @ApplicationContext private val appContext: Context,
+    private val chatApi: ChatApi
 ) : ViewModel() {
+
     // Map<orderId, danh sách tin nhắn>
     private val _conversations =
         MutableStateFlow<Map<Long, MutableList<ChatMessage>>>(emptyMap())
@@ -50,6 +58,56 @@ class ChatViewModel @Inject constructor(
     /** Khi khởi tạo, tải các đoạn chat đã lưu tạm */
     init {
         loadCachedConversations()
+    }
+
+    //xu ly chuỗi thời gian
+    private fun parseCreatedAt(value: String): Long {
+        return try {
+            val formatter = java.text.SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss",
+                java.util.Locale.getDefault()
+            )
+            formatter.parse(value)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
+
+    //load tin nhan
+    fun loadMessagesFromServer(orderId: Long) {
+        viewModelScope.launch {
+            try {
+                Log.d("ChatVM", "📥 Shipper load DB messages for order=$orderId")
+
+                val res = chatApi.getMessages(orderId, limit = 50)
+                if (res.isSuccessful) {
+                    //val serverMessages = res.body()?.messages ?: emptyList()
+                    val serverMessages = res.body() ?: emptyList()
+
+                    val mapped = serverMessages.map {
+                        ChatMessage(
+                            fromUserId = it.from_user_id,
+                            toUserId = it.to_user_id,
+                            content = it.content,
+                            createdAt = parseCreatedAt(it.created_at)
+                        )
+                    }
+
+                    val map = _conversations.value.toMutableMap()
+                    map[orderId] = mapped.toMutableList()
+                    _conversations.value = map
+
+                    saveConversation(orderId, mapped)
+
+                    Log.d("ChatVM", "✅ Shipper loaded ${mapped.size} messages")
+                } else {
+                    Log.e("ChatVM", "❌ Load DB failed: ${res.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatVM", "❌ Load DB exception", e)
+            }
+        }
     }
 
     /** Kết nối WebSocket với token thật, cho đơn cụ thể */

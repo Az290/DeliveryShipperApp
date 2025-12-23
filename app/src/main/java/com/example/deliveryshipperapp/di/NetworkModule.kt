@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.deliveryshipperapp.data.local.DataStoreManager
 import com.example.deliveryshipperapp.data.remote.ApiClient
 import com.example.deliveryshipperapp.data.remote.api.AuthApi
+import com.example.deliveryshipperapp.data.remote.api.ChatApi
 import com.example.deliveryshipperapp.data.remote.api.ProfileApi
 import com.example.deliveryshipperapp.data.remote.api.ShipperApi
 import com.example.deliveryshipperapp.data.remote.interceptor.AuthInterceptor
@@ -78,4 +79,10 @@ object NetworkModule {
     @Provides @Singleton
     fun provideProfileRepository(api: ProfileApi): ProfileRepository =
         ProfileRepository(api)
+
+    @Provides
+    @Singleton
+    fun provideChatApi(retrofit: Retrofit): ChatApi =
+        retrofit.create(ChatApi::class.java)
+
 }

@@ -47,11 +47,23 @@ fun ChatScreen(
     val backgroundColor = Color(0xFFFAFAFA)
 
     // Kết nối socket khi có token
-    LaunchedEffect(accessToken) {
+//    LaunchedEffect(accessToken) {
+//        if (accessToken.isNotBlank()) {
+//            viewModel.connectWebSocket(orderId, accessToken)
+//        }
+//    }
+
+    //goi load DB khi mở màn hình chat
+    LaunchedEffect(orderId, accessToken) {
         if (accessToken.isNotBlank()) {
+            // 1️⃣ Load DB trước
+            viewModel.loadMessagesFromServer(orderId)
+
+            // 2️⃣ Kết nối WebSocket
             viewModel.connectWebSocket(orderId, accessToken)
         }
     }
+
 
     // Auto‑scroll xuống cuối khi có tin nhắn mới
     LaunchedEffect(messages.size) {
