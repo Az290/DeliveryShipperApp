@@ -1,7 +1,6 @@
 package com.example.deliveryshipperapp.data.remote.api
 
 import com.example.deliveryshipperapp.data.remote.dto.MessageDto
-import com.example.deliveryshipperapp.data.remote.dto.MessagesResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -16,7 +15,7 @@ import retrofit2.http.Query
 //    ): Response<MessagesResponse>
 //}
 interface ChatApi {
-    @GET("chat/{orderId}")
+    @GET("chat/{orderId}/messages")
     suspend fun getMessages(
         @Path("orderId") orderId: Long,
         @Query("limit") limit: Int
