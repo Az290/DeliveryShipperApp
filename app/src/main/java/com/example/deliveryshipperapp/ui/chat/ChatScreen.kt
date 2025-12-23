@@ -22,10 +22,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
+    navController: NavController,
     orderId: Long,
     customerId: Long,
     accessToken: String,
@@ -33,6 +35,12 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null
 ) {
+    // ✅ FIX QUAN TRỌNG: Lấy ID Shipper ngay lập tức từ token
+    // Không chờ ViewModel connect socket (tránh lỗi hiện tin nhắn bên trái)
+    val myShipperId = remember(accessToken) {
+        extractUserIdFromToken(accessToken) ?: -1L
+    }
+
     // Lấy cuộc trò chuyện của đơn hiện tại
     val conversationMap by viewModel.conversations.collectAsState()
     val messages = conversationMap[orderId] ?: emptyList()
@@ -46,14 +54,7 @@ fun ChatScreen(
     val customerBubbleColor = Color(0xFFF0F0F0)
     val backgroundColor = Color(0xFFFAFAFA)
 
-    // Kết nối socket khi có token
-//    LaunchedEffect(accessToken) {
-//        if (accessToken.isNotBlank()) {
-//            viewModel.connectWebSocket(orderId, accessToken)
-//        }
-//    }
-
-    //goi load DB khi mở màn hình chat
+    // Gọi load DB và Socket khi mở màn hình chat
     LaunchedEffect(orderId, accessToken) {
         if (accessToken.isNotBlank()) {
             // 1️⃣ Load DB trước
@@ -63,7 +64,6 @@ fun ChatScreen(
             viewModel.connectWebSocket(orderId, accessToken)
         }
     }
-
 
     // Auto‑scroll xuống cuối khi có tin nhắn mới
     LaunchedEffect(messages.size) {
@@ -115,7 +115,7 @@ fun ChatScreen(
                     titleContentColor = Color(0xFF1A1A1A)
                 ),
                 navigationIcon = {
-                    IconButton(onClick = { onBack?.invoke() }) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Quay lại",
@@ -211,7 +211,9 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages) { msg ->
-                        val mine = (msg.fromUserId == viewModel.shipperId)
+                        // ✅ Dùng myShipperId đã tính toán ở trên thay vì viewModel.shipperId
+                        val mine = (msg.fromUserId == myShipperId)
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start

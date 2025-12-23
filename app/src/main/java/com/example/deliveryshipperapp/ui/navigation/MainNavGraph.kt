@@ -77,6 +77,7 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 val customerId = backStack.arguments?.getString("customerId")?.toLong() ?: 0L
                 val customerName = backStack.arguments?.getString("customerName") ?: "Khách hàng"
                 ChatScreen(
+                    navController = navController,
                     orderId = orderId,
                     customerId = customerId,
                     accessToken = accessToken ?: "",

@@ -150,7 +150,6 @@ class ChatViewModel @Inject constructor(
         })
     }
 
-    /** Gửi tin nhắn cho đơn cụ thể */
     fun sendMessage(orderId: Long, toUserId: Long, content: String) {
         val json = JSONObject()
         json.put("type", "chat_message")
@@ -160,15 +159,17 @@ class ChatViewModel @Inject constructor(
 
         webSocket?.send(json.toString())
 
+        // ✅ SỬA Ở ĐÂY: Dùng shipperId thực tế thay vì -1L
+        val myId = shipperId ?: -1L
+
         val msg = ChatMessage(
-            fromUserId = -1L,
+            fromUserId = myId, // Dùng ID thật để UI hiển thị đúng bên phải
             toUserId = toUserId,
             content = content,
             createdAt = System.currentTimeMillis()
         )
         viewModelScope.launch { appendMessage(orderId, msg) }
     }
-
     /** Thêm tin nhắn vào map + lưu cache */
 //    private fun appendMessage(orderId: Long, msg: ChatMessage) {
 //        val map = _conversations.value.toMutableMap()
