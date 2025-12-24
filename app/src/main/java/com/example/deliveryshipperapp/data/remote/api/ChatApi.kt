@@ -15,7 +15,7 @@ import retrofit2.http.Query
 //    ): Response<MessagesResponse>
 //}
 interface ChatApi {
-    @GET("chat/{orderId}/messages")
+    @GET("orders/{orderId/messages}")
     suspend fun getMessages(
         @Path("orderId") orderId: Long,
         @Query("limit") limit: Int

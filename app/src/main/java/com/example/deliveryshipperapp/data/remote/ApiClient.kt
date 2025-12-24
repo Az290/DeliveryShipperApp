@@ -9,21 +9,33 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-    fun create(authInterceptor: Interceptor?=null): Retrofit{
-        val logging= HttpLoggingInterceptor().apply {
-            level= HttpLoggingInterceptor.Level.BODY
-        }
-        val builder= OkHttpClient.Builder()
-            .addInterceptor(logging)
-            .connectTimeout(30,TimeUnit.SECONDS)
-            .readTimeout(30,TimeUnit.SECONDS)
+    private const val TIMEOUT = 30L
 
-        authInterceptor?.let{ builder.addInterceptor(it)}
+    // 1. Hàm tạo Retrofit linh hoạt (Giữ nguyên logic cũ để không lỗi DI)
+    // Nếu truyền authInterceptor vào -> Nó là Authenticated Client
+    fun create(authInterceptor: Interceptor? = null): Retrofit {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val builder = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .connectTimeout(TIMEOUT, TimeUnit.SECONDS)
+            .readTimeout(TIMEOUT, TimeUnit.SECONDS)
+
+        // Chỉ thêm AuthInterceptor nếu được truyền vào
+        authInterceptor?.let { builder.addInterceptor(it) }
 
         return Retrofit.Builder()
             .baseUrl(Constants.BASE_URL)
             .client(builder.build())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    // 2. THÊM HÀM MỚI: Client Public (Không bao giờ có AuthInterceptor)
+    // Dùng riêng cho việc Login và Refresh Token để tránh vòng lặp
+    fun createPublic(): Retrofit {
+        return create(null)
     }
 }
