@@ -32,11 +32,6 @@ fun extractUserIdFromToken(token: String): Long? {
     }
 }
 
-//@HiltViewModel
-//class ChatViewModel @Inject constructor(
-//    @ApplicationContext private val appContext: Context
-//) : ViewModel() {
-
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
@@ -52,7 +47,9 @@ class ChatViewModel @Inject constructor(
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient()
     private val gson = Gson()
-    var shipperId: Long? = null
+
+    // ✅ SỬA: Khởi tạo mặc định -1L
+    var shipperId: Long = -1L
         private set
 
     /** Khi khởi tạo, tải các đoạn chat đã lưu tạm */
@@ -63,13 +60,24 @@ class ChatViewModel @Inject constructor(
     //xu ly chuỗi thời gian
     private fun parseCreatedAt(value: String): Long {
         return try {
+            // ✅ SỬA: Thêm định dạng ISO 8601 (T và Z) để khớp với Server
             val formatter = java.text.SimpleDateFormat(
-                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
                 java.util.Locale.getDefault()
             )
+            formatter.timeZone = java.util.TimeZone.getTimeZone("UTC")
             formatter.parse(value)?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
-            System.currentTimeMillis()
+            // Fallback về định dạng cũ nếu lỗi
+            try {
+                val formatterOld = java.text.SimpleDateFormat(
+                    "yyyy-MM-dd HH:mm:ss",
+                    java.util.Locale.getDefault()
+                )
+                formatterOld.parse(value)?.time ?: System.currentTimeMillis()
+            } catch (ex: Exception) {
+                System.currentTimeMillis()
+            }
         }
     }
 
@@ -82,7 +90,6 @@ class ChatViewModel @Inject constructor(
 
                 val res = chatApi.getMessages(orderId, limit = 50)
                 if (res.isSuccessful) {
-                    //val serverMessages = res.body()?.messages ?: emptyList()
                     val serverMessages = res.body()?.data ?: emptyList()
 
                     val mapped = serverMessages.map {
@@ -111,19 +118,22 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Kết nối WebSocket với token thật, cho đơn cụ thể */
-    fun connectWebSocket(orderId: Long, accessToken: String) {
+    // ✅ SỬA: Thêm tham số currentUserId để nhận ID từ UI
+    fun connectWebSocket(orderId: Long, accessToken: String, currentUserId: Long) {
         currentOrderId = orderId
+
+        // ✅ Gán ID nhận được vào biến shipperId
+        this.shipperId = currentUserId
+
         val url = Constants.BASE_URL.replace("http", "ws") + "ws?token=$accessToken"
         val request = Request.Builder().url(url).build()
-        shipperId = extractUserIdFromToken(accessToken)
-        Log.d("ChatVM", "Current shipperId = $shipperId")
+
+        Log.d("ChatVM", "Connecting WS. Current shipperId set to: $shipperId")
+
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
                 Log.d("ChatVM", "✅ WS connected")
-
             }
-
-
 
             override fun onMessage(ws: WebSocket, text: String) {
                 try {
@@ -159,8 +169,8 @@ class ChatViewModel @Inject constructor(
 
         webSocket?.send(json.toString())
 
-        // ✅ SỬA Ở ĐÂY: Dùng shipperId thực tế thay vì -1L
-        val myId = shipperId ?: -1L
+        // ✅ SỬA: Dùng shipperId thực tế (đã gán ở connectWebSocket)
+        val myId = shipperId
 
         val msg = ChatMessage(
             fromUserId = myId, // Dùng ID thật để UI hiển thị đúng bên phải
@@ -170,15 +180,8 @@ class ChatViewModel @Inject constructor(
         )
         viewModelScope.launch { appendMessage(orderId, msg) }
     }
+
     /** Thêm tin nhắn vào map + lưu cache */
-//    private fun appendMessage(orderId: Long, msg: ChatMessage) {
-//        val map = _conversations.value.toMutableMap()
-//        val list = map[orderId] ?: mutableListOf()
-//        list.add(msg)
-//        map[orderId] = list
-//        _conversations.value = map
-//        saveConversation(orderId, list)
-//    }
     private fun appendMessage(orderId: Long, msg: ChatMessage) {
         val currentMap = _conversations.value.toMutableMap()
         val oldList = currentMap[orderId] ?: emptyList()

@@ -2,7 +2,6 @@ package com.example.deliveryshipperapp.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,7 +22,6 @@ import kotlinx.coroutines.delay
 fun MainNavGraph(rootNavController: NavHostController) {
     val navController = rememberNavController()
     val ordersViewModel: OrdersViewModel = hiltViewModel()
-    val currentChatOrder by ordersViewModel.currentChatOrder.collectAsState()
     val isFirstOrderReceived by ordersViewModel.isFirstOrderReceived.collectAsState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -57,7 +55,6 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 ProfileScreen(navController = rootNavController)
             }
 
-
             composable(
                 route = "map_full/{driverLat}/{driverLng}/{userLat}/{userLng}"
             ) { backStackEntry ->
@@ -65,23 +62,27 @@ fun MainNavGraph(rootNavController: NavHostController) {
                 val driverLng = backStackEntry.arguments?.getString("driverLng")!!.toDouble()
                 val userLat = backStackEntry.arguments?.getString("userLat")!!.toDouble()
                 val userLng = backStackEntry.arguments?.getString("userLng")!!.toDouble()
-                MapFullScreen(driverLat, driverLng, userLat, userLng,onBack = {
+                MapFullScreen(driverLat, driverLng, userLat, userLng, onBack = {
                     navController.popBackStack()
                 })
             }
 
-
-            // 👇 Route mới khi chuyển từ DeliveryScreen có tên khách
-            composable("chat/{orderId}/{customerId}/{customerName}") { backStack ->
+            // 👇 Route CHAT đã sửa: Nhận thêm shipperId
+            composable("chat/{orderId}/{customerId}/{customerName}/{shipperId}") { backStack ->
                 val orderId = backStack.arguments?.getString("orderId")?.toLong() ?: 0L
                 val customerId = backStack.arguments?.getString("customerId")?.toLong() ?: 0L
                 val customerName = backStack.arguments?.getString("customerName") ?: "Khách hàng"
+
+                // ✅ Lấy shipperId từ URL
+                val shipperId = backStack.arguments?.getString("shipperId")?.toLong() ?: -1L
+
                 ChatScreen(
                     navController = navController,
                     orderId = orderId,
                     customerId = customerId,
                     accessToken = accessToken ?: "",
-                    customerName = customerName
+                    customerName = customerName,
+                    shipperId = shipperId // ✅ ĐÃ TRUYỀN THAM SỐ NÀY (Hết lỗi đỏ)
                 )
             }
         }

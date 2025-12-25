@@ -1,7 +1,7 @@
 package com.example.deliveryshipperapp.ui.orders
 
-import android.content.Intent // ✅ Thêm import
-import android.net.Uri        // ✅ Thêm import
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext // ✅ Thêm import
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +35,7 @@ fun DeliveryScreen(
     viewModel: OrdersViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current // ✅ Lấy context để dùng cho Intent gọi điện và Toast
+    val context = LocalContext.current
     val orderDetail by viewModel.orderDetail.collectAsState()
     val updateState by viewModel.updateOrderState.collectAsState()
 
@@ -161,7 +161,6 @@ fun DeliveryScreen(
                                             Text(
                                                 text = "Vị trí khách hàng",
                                                 modifier = Modifier.clickable {
-                                                    // Lưu ý: Nếu muốn dẫn đường Google Maps thì cần Intent khác, ở đây đang navigate trong app
                                                     navController.navigate("map_full/10.762622/106.660172/${orderData.latitude}/${orderData.longitude}")
                                                 },
                                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color(0xFF667eea))
@@ -184,7 +183,13 @@ fun DeliveryScreen(
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 OutlinedButton(
                                     onClick = {
-                                        navController.navigate("chat/${orderData.id}/${orderData.user_id}/${orderData.user_name ?: "Customer"}")
+                                        // ✅ SỬA: Lấy shipperId từ dữ liệu đơn hàng và truyền vào route
+                                        // Giả sử trong model orderData có trường 'shipper_info' (như trong JSON bạn gửi)
+                                        val shipperId = orderData.shipper_info?.id ?: -1L
+
+                                        navController.navigate(
+                                            "chat/${orderData.id}/${orderData.user_id}/${orderData.user_name ?: "Customer"}/$shipperId"
+                                        )
                                     },
                                     modifier = Modifier.weight(1f).height(56.dp),
                                     shape = RoundedCornerShape(16.dp)
@@ -197,7 +202,6 @@ fun DeliveryScreen(
                                 if (!orderData.phone.isNullOrEmpty()) {
                                     OutlinedButton(
                                         onClick = {
-                                            // ✅ LOGIC GỌI ĐIỆN
                                             try {
                                                 val intent = Intent(Intent.ACTION_DIAL).apply {
                                                     data = Uri.parse("tel:${orderData.phone}")

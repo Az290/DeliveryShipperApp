@@ -30,16 +30,14 @@ fun ChatScreen(
     navController: NavController,
     orderId: Long,
     customerId: Long,
+    // ✅ THÊM: Nhận ID Shipper từ màn hình trước (lấy từ shipper_info.id)
+    shipperId: Long,
     accessToken: String,
     customerName: String = "Khách hàng",
     viewModel: ChatViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null
 ) {
-    // ✅ FIX QUAN TRỌNG: Lấy ID Shipper ngay lập tức từ token
-    // Không chờ ViewModel connect socket (tránh lỗi hiện tin nhắn bên trái)
-    val myShipperId = remember(accessToken) {
-        extractUserIdFromToken(accessToken) ?: -1L
-    }
+    // ❌ ĐÃ XÓA: Đoạn code tự giải mã token gây rủi ro
 
     // Lấy cuộc trò chuyện của đơn hiện tại
     val conversationMap by viewModel.conversations.collectAsState()
@@ -60,8 +58,8 @@ fun ChatScreen(
             // 1️⃣ Load DB trước
             viewModel.loadMessagesFromServer(orderId)
 
-            // 2️⃣ Kết nối WebSocket
-            viewModel.connectWebSocket(orderId, accessToken)
+            // 2️⃣ Kết nối WebSocket & Truyền ID Shipper vào ViewModel
+            viewModel.connectWebSocket(orderId, accessToken, shipperId)
         }
     }
 
@@ -211,8 +209,8 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages) { msg ->
-                        // ✅ Dùng myShipperId đã tính toán ở trên thay vì viewModel.shipperId
-                        val mine = (msg.fromUserId == myShipperId)
+                        // ✅ Dùng shipperId được truyền vào để so sánh chính xác
+                        val mine = (msg.fromUserId == shipperId)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
