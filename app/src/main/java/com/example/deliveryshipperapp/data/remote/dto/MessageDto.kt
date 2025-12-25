@@ -10,6 +10,3 @@ data class MessageDto(
     val created_at: String
 )
 
-data class MessagesResponse(
-    val messages: List<MessageDto>
-)

@@ -16,7 +16,6 @@ class AuthInterceptor(
     private val dataStore: DataStoreManager
 ) : Interceptor {
 
-    // 🔒 Tạo một object để làm khóa đồng bộ
     companion object {
         private val LOCK = Any()
     }
@@ -24,9 +23,8 @@ class AuthInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         var request = chain.request()
 
-        // 1. Lấy token hiện tại để gửi đi
-        // Lưu lại token này vào biến local để lát nữa so sánh
-        val tokenUsedInRequest = runBlocking { dataStore.accessToken.first() }
+        // 1. Lấy token từ RAM (Nhanh)
+        val tokenUsedInRequest = dataStore.getAccessTokenInstant()
 
         if (!tokenUsedInRequest.isNullOrEmpty()) {
             request = request.newBuilder()
@@ -36,22 +34,14 @@ class AuthInterceptor(
 
         val response = chain.proceed(request)
 
-        // 2. Nếu lỗi 401 -> Cần Refresh
         if (response.code == 401) {
-            response.close() // Đóng response cũ
-
-            // 🛑 BẮT ĐẦU KHÓA ĐỒNG BỘ 🛑
-            // Chỉ cho 1 luồng chạy vào đây, các luồng khác phải đợi ở ngoài
             synchronized(LOCK) {
+                // Kiểm tra lại token trong kho
+                val currentTokenInStore = dataStore.getAccessTokenInstant()
 
-                // 3. Kiểm tra lại token trong DataStore
-                val currentTokenInStore = runBlocking { dataStore.accessToken.first() }
-
-                // TRƯỜNG HỢP A: Có luồng khác đã refresh xong rồi!
-                // (Token trong kho khác với token mình vừa dùng bị lỗi)
                 if (currentTokenInStore != null && currentTokenInStore != tokenUsedInRequest) {
-                    Log.d("AuthInterceptor", "♻️ Có luồng khác đã refresh giúp rồi. Dùng luôn token mới.")
-
+                    Log.d("AuthInterceptor", "♻️ Dùng token mới từ luồng khác.")
+                    response.close()
                     val newRequest = request.newBuilder()
                         .removeHeader("Authorization")
                         .addHeader("Authorization", "Bearer $currentTokenInStore")
@@ -59,12 +49,13 @@ class AuthInterceptor(
                     return chain.proceed(newRequest)
                 }
 
-                // TRƯỜNG HỢP B: Chưa ai refresh cả, mình phải tự làm
-                val refreshToken = runBlocking { dataStore.refreshToken.first() }
+                // 🛑 SỬA LẠI: Dùng hàm lấy nhanh thay vì runBlocking
+                // Code cũ gây ANR: val refreshToken = runBlocking { dataStore.refreshToken.first() }
+
+                // ✅ Code mới (Siêu nhanh):
+                val refreshToken = dataStore.getRefreshTokenInstant()
 
                 if (!refreshToken.isNullOrEmpty()) {
-                    Log.d("AuthInterceptor", "🔒 Đang Refresh Token (Độc quyền)...")
-
                     val authApi = ApiClient.createPublic().create(AuthApi::class.java)
                     val refreshResp = runBlocking {
                         try {
@@ -82,6 +73,7 @@ class AuthInterceptor(
                         runBlocking { dataStore.saveTokens(newAccess, newRefresh) }
 
                         Log.d("AuthInterceptor", "✅ Refresh thành công!")
+                        response.close()
 
                         val newRequest = request.newBuilder()
                             .removeHeader("Authorization")
@@ -91,11 +83,11 @@ class AuthInterceptor(
                     } else {
                         Log.e("AuthInterceptor", "❌ Refresh thất bại. Logout.")
                         runBlocking { dataStore.clearTokens() }
+                        // Để response 401 trôi về UI xử lý logout
                     }
                 }
-            } // 🛑 KẾT THÚC KHÓA
+            }
         }
-
         return response
     }
 }

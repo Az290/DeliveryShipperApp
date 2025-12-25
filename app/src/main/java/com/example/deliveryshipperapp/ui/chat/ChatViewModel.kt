@@ -83,7 +83,7 @@ class ChatViewModel @Inject constructor(
                 val res = chatApi.getMessages(orderId, limit = 50)
                 if (res.isSuccessful) {
                     //val serverMessages = res.body()?.messages ?: emptyList()
-                    val serverMessages = res.body() ?: emptyList()
+                    val serverMessages = res.body()?.data ?: emptyList()
 
                     val mapped = serverMessages.map {
                         ChatMessage(
