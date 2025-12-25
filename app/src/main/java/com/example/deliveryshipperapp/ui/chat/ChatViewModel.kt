@@ -100,6 +100,7 @@ class ChatViewModel @Inject constructor(
                             createdAt = parseCreatedAt(it.created_at)
                         )
                     }
+                        .sortedBy {it.createdAt }
 
                     val map = _conversations.value.toMutableMap()
                     map[orderId] = mapped.toMutableList()
